@@ -1,0 +1,2724 @@
+003FB502 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.16.01
+Created On: 10/01/2025 22:21:06
+
+00000000                             1  *-----------------------------------------------------------
+00000000                             2  * Title      : POKEMON BATTLE SIMULATOR
+00000000                             3  * Authors    : Vicent Roig, Hugo López y Alenjando Martínez
+00000000                             4  * Date       : 11/11/2024
+00000000                             5  *
+00000000                             6  * Description: A Pokemon battle simulator based on the originals 
+00000000                             7  * ARCADE Pokemon red and green that came up on 1996 in Japan 
+00000000                             8  * and redistributed in Europe around 1988.
+00000000                             9  * Now this game pretends to emulate a serial number of random
+00000000                            10  * pokemon encounter battles, where each time the pokemon ir RNG.
+00000000                            11  * The user (trainer) will have to defeat each pokemon a determined
+00000000                            12  * number of times. If accomplished, then they will face a random
+00000000                            13  * champion enconter that will have to be defeated. If so, then the trainer
+00000000                            14  * is considerd to become the new champion. 
+00000000                            15  *-----------------------------------------------------------
+00001000                            16      ORG    $1000
+00001000                            17      
+00001000                            18      
+00001000                            19  ; --- INCLUDES ---------------------------------------------
+00001000                            20      
+00001000                            21      INCLUDE "SYSTEM.X68"
+00001000                            22      
+00001000                            23  ; ----------------------------------------------------------
+00001000                            24  SYSINIT
+00001000                            25  ; INITIALIZE GAME SYSTEM.
+00001000                            26  ; INPUT     : NONE
+00001000                            27  ; OUTPUT    : NONE
+00001000                            28  ; MODIFIES  : NONE
+00001000                            29  ; ----------------------------------------------------------
+00001000                            30          
+00001000  21FC 000010BA 0080        31      MOVE.L #KBDUPD,($80)
+00001008  21FC 0000107A 0084        32      MOVE.L #SCRPLOT,($84)
+00001010  21FC 0000109E 0064        33      MOVE.L #SCRTIM,($64)
+00001018  13FC 0001 003FB668        34      MOVE.B #1,(SCRCLEAR)    ; DEFAULT CLEAN SREEN (ACTIVE)
+00001020                            35      
+00001020  4EB9 00001034             36      JSR SCRINIT
+00001026  4EB9 000010AC             37      JSR KBDINIT
+0000102C                            38          
+0000102C  40E7                      39      MOVE.W SR,-(A7)
+0000102E  0257 D8FF                 40      ANDI.W #$D8FF,(A7)
+00001032                            41      
+00001032  4E73                      42      RTE
+00001034                            43  
+00001034                            44  ; ----------------------------------------------------------    
+00001034                            45      
+00001034                            46      
+00001034                            47  ; ----------------------------------------------------------
+00001034                            48  SCRINIT
+00001034                            49  ; INITIALIZATION OF MAIN WINDOW. DEFINES THE CURRENT SCREEN
+00001034                            50  ; RESOLUTION AND THE WINDOWED MODE. ALSO ENABLES TIME INTERRUPT.
+00001034                            51  ; INPUT     : NONE
+00001034                            52  ; OUTPUT    : NONE
+00001034                            53  ; MODIFIES  : NONE
+00001034                            54  ; ----------------------------------------------------------
+00001034                            55      
+00001034  48E7 C000                 56      MOVEM.L D0-D1,-(A7)
+00001038                            57      
+00001038                            58      ; SET WINDOW OUTPUT
+00001038  103C 0021                 59      MOVE.B #33,D0
+0000103C  223C 028001E0             60      MOVE.L #SCRWIDTH<<16|SCRHEIGH,D1
+00001042  4E4F                      61      TRAP #15
+00001044                            62      
+00001044                            63      ; SET WINDOWED MODE
+00001044  7201                      64      MOVE.L #1,D1
+00001046  4E4F                      65      TRAP #15
+00001048                            66      
+00001048                            67      ; CLEAR SCREEN
+00001048  103C 000B                 68      MOVE.B #11,D0
+0000104C  223C 0000FF00             69      MOVE.L #$FF00,D1
+00001052  4E4F                      70      TRAP #15
+00001054                            71      
+00001054                            72      ; ENABLE DOUBLE BUFFER
+00001054  103C 005C                 73      MOVE.B #92,D0
+00001058  123C 0011                 74      MOVE.B #17,D1
+0000105C  4E4F                      75      TRAP #15 
+0000105E                            76      
+0000105E                            77      ; ENABLE TIMED INTERRUPT
+0000105E  103C 0020                 78      MOVE.B #32,D0
+00001062  123C 0006                 79      MOVE.B #6,D1
+00001066  143C 0081                 80      MOVE.B #$81,D2
+0000106A  7614                      81      MOVE.L #20,D3   ; 50FPS 
+0000106C  4E4F                      82      TRAP #15
+0000106E                            83      
+0000106E                            84      ; CLEAR INTERRUPT COUNTER
+0000106E  4239 003FB664             85      CLR.B (SCRINTCT)
+00001074                            86         
+00001074  4CDF 0003                 87      MOVEM.L (A7)+,D0-D1
+00001078                            88  
+00001078  4E75                      89      RTS
+0000107A                            90  
+0000107A                            91  ; ----------------------------------------------------------
+0000107A                            92  
+0000107A                            93  ; ----------------------------------------------------------
+0000107A                            94  SCRPLOT
+0000107A                            95  ; UPDATES THE DOUBLE BUFFER. CHANGES FROM SECUNDARY BUFFER
+0000107A                            96  ; PRIMARY BUFFER SHOWING WHATS ON IT.
+0000107A                            97  ; INPUT     : BUFFER VALUE IN A7 REGISTER
+0000107A                            98  ; OUTPUT    : NONE
+0000107A                            99  ; MODIFIES  : NONE
+0000107A                           100  ; ----------------------------------------------------------
+0000107A                           101      
+0000107A  48A7 C000                102      MOVEM.W D0-D1,-(A7)
+0000107E                           103      
+0000107E                           104      ; SWITCH BUFFERS
+0000107E  103C 005E                105      MOVE.B #94,D0
+00001082  4E4F                     106      TRAP #15
+00001084                           107      
+00001084                           108      ; CLEAR HIDDEN BUFFER
+00001084  4A39 003FB668            109      TST.B (SCRCLEAR)
+0000108A  6700 000C                110      BEQ NOCLEAR
+0000108E  103C 000B                111      MOVE.B #11,D0
+00001092  323C FF00                112      MOVE.W #$FF00,D1
+00001096  4E4F                     113      TRAP #15
+00001098                           114  NOCLEAR  
+00001098  4C9F 0003                115      MOVEM.W (A7)+,D0-D1 
+0000109C                           116  
+0000109C  4E73                     117      RTE
+0000109E                           118  
+0000109E                           119  ; ----------------------------------------------------------
+0000109E                           120  
+0000109E                           121  ; ----------------------------------------------------------
+0000109E                           122  SCRTIM
+0000109E                           123  ; TIMED INTERRUPT SERVICE ROUTINE
+0000109E                           124  ; INPUT     : NONE
+0000109E                           125  ; OUTPUT    : NONE
+0000109E                           126  ; MODIFIES  : NONE
+0000109E                           127  ; ----------------------------------------------------------
+0000109E                           128      
+0000109E  5239 003FB664            129      ADDQ.B #1,(SCRINTCT)
+000010A4  5239 003FB666            130      ADDQ.B #1,(SCRCYCCT)
+000010AA  4E73                     131      RTE
+000010AC                           132  
+000010AC                           133  ; ----------------------------------------------------------
+000010AC                           134  
+000010AC                           135  ; ----------------------------------------------------------
+000010AC                           136  KBDINIT
+000010AC                           137  ; INITALIZE KEYBOARD.
+000010AC                           138  ; INPUT     : NONE
+000010AC                           139  ; OUTUT     : NONE
+000010AC                           140  ; MODIFIES  : NONE
+000010AC                           141  ; ----------------------------------------------------------
+000010AC                           142      
+000010AC  4239 003FB662            143      CLR.B (KBDVAL)
+000010B2  4239 003FB663            144      CLR.B (KBDEDGE)
+000010B8  4E75                     145      RTS 
+000010BA                           146  
+000010BA                           147  ; ----------------------------------------------------------
+000010BA                           148  
+000010BA                           149  ; ----------------------------------------------------------
+000010BA                           150  KBDUPD
+000010BA                           151  ; UPDATE KEYBOARD INFO.
+000010BA                           152  ; 6 -> UP
+000010BA                           153  ; 5 -> DOWN
+000010BA                           154  ; 4 -> LEFT
+000010BA                           155  ; 3 -> RIGHT
+000010BA                           156  ; 2 -> SELECT
+000010BA                           157  ; 1 -> ATTACK
+000010BA                           158  ; 0 -> PAUSE
+000010BA                           159  ; INPUT     : NONE
+000010BA                           160  ; OUTUT     : NONE
+000010BA                           161  ; MODIFIES  : NONE
+000010BA                           162  ; ----------------------------------------------------------
+000010BA                           163      
+000010BA  48E7 F000                164      MOVEM.L D0-D3,-(A7)
+000010BE                           165      
+000010BE                           166      ; READ FIRST PART TO CONVERT TO FRIENDLY FORMAT
+000010BE  103C 0013                167      MOVE.B  #19,D0
+000010C2  223C 26282527            168      MOVE.L  #KBDUP<<24+KBDDOWN<<16+KBDLEFT<<8+KBDRIGHT,D1
+000010C8  4E4F                     169      TRAP    #15
+000010CA  6100 002A                170      BSR     .STORE
+000010CE  223C 585A0020            171      MOVE.L  #SELECT<<24+ATTACK<<16+PAUSE,D1
+000010D4  4E4F                     172      TRAP    #15
+000010D6  6100 001E                173      BSR     .STORE
+000010DA                           174      
+000010DA                           175      ; COMPUTE KBDEDGE
+000010DA  1039 003FB662            176      MOVE.B  (KBDVAL),D0
+000010E0  4600                     177      NOT.B   D0
+000010E2  C002                     178      AND.B   D2,D0
+000010E4  13C2 003FB662            179      MOVE.B  D2,(KBDVAL)
+000010EA  13C0 003FB663            180      MOVE.B  D0,(KBDEDGE)
+000010F0  4CDF 000F                181      MOVEM.L (A7)+,D0-D3
+000010F4  4E73                     182      RTE   
+000010F6                           183  
+000010F6                           184  .STORE
+000010F6  363C 0003                185      MOVE.W  #3,D3
+000010FA                           186  .LOOP
+000010FA  E189                     187      LSL.L   #8,D1
+000010FC  E312                     188      ROXL.B  #1,D2
+000010FE  51CB FFFA                189      DBRA.W  D3,.LOOP
+00001102  4E75                     190      RTS  
+00001104                           191      
+00001104                           192  ; ----------------------------------------------------------
+00001104                           193  
+00001104                           194  
+00001104                           195  
+00001104                           196  
+00001104                           197  
+00001104                           198  
+00001104                           199  
+00001104                           200  
+00001104                           201  
+00001104                           202  
+00001104                           203  
+00001104                           204  
+00001104                           205  
+00001104                           206  
+00001104                           207  
+00001104                           208  
+00001104                           209  
+00001104                           210  
+00001104                           211  
+00001104                           212  -------------------- end include --------------------
+00001104                           213      INCLUDE "SYSCONST.X68"
+00001104                           214  
+00001104                           215  ; --- SCREEN RELATED CONSTANTS -----------------------------
+00001104                           216  
+00001104  =00000280                217  SCRWIDTH        EQU         640
+00001104  =000001E0                218  SCRHEIGH        EQU         480
+00001104                           219  
+00001104                           220               
+00001104                           221  ; --- KEYCODES ---------------------------------------------
+00001104                           222  
+00001104  =00000025                223  KBDLEFT         EQU         $25
+00001104  =00000026                224  KBDUP           EQU         $26
+00001104  =00000027                225  KBDRIGHT        EQU         $27
+00001104  =00000028                226  KBDDOWN         EQU         $28
+00001104  =0000005A                227  ATTACK          EQU         'Z'
+00001104  =00000058                228  SELECT          EQU         'X'
+00001104  =00000020                229  PAUSE           EQU         ' '
+00001104                           230  
+00001104                           231  ; --- BITFIELD MASKS ---------------------------------------
+00001104                           232  
+00001104  =00000020                233  KBDMSKLEFT      EQU         %00100000
+00001104  =00000080                234  KBDMSKUP        EQU         %10000000
+00001104  =00000010                235  KBDMSKRIGHT     EQU         %00010000
+00001104  =00000040                236  KBDMSKDOWN      EQU         %01000000
+00001104  =00000004                237  KBDMSKATTACK    EQU         %00000100
+00001104  =00000008                238  KBDMSKSELECT    EQU         %00001000
+00001104  =00000001                239  KBDMSKPAUSE     EQU         %00000001
+00001104                           240  
+00001104                           241  ; --- BITFIELD POSITIONS -----------------------------------
+00001104                           242  
+00001104  =00000005                243  KBDPOSLEFT      EQU         5
+00001104  =00000007                244  KBDPOSUP        EQU         7
+00001104  =00000004                245  KBDPOSRIGHT     EQU         4
+00001104  =00000006                246  KBDPOSDOWN      EQU         6
+00001104  =00000002                247  KBDPOSATTACK    EQU         2
+00001104  =00000003                248  KBDPOSSELECT    EQU         3
+00001104  =00000000                249  KBDPOSPAUSE     EQU         0
+00001104                           250  
+00001104                           251  
+00001104                           252  
+00001104                           253  -------------------- end include --------------------
+00001104                           254      INCLUDE "CONST.X68"
+00001104                           255  
+00001104                           256  ; --- BUFFERS RELATED CONSTANTS ----------------------------------------------------
+00001104                           257  ;FILEPATH:      ADDRES TO INIT IMAGE
+00001104                           258  ;FILEPATHWIN:   ADDRES TO WIN IMAGE
+00001104                           259  ;FILEPATHLOSE:  ADDRES TO LOSE IMAGE
+00001104                           260  ;BUFFERL:       BUFFER THAT CONTAINS THE INIT IMAGE AT FIRST OR THE ENEMY TEAM IMAGE
+00001104                           261  ;PBUFFERL:      POINTER TO BUFFERL
+00001104                           262  ;WINBUFF:       BUFFER THAT CONTAINS THE WIN IMAGE
+00001104                           263  ;LOSEBUFF:      BUFFER THAT CONTAINS THE LOSE IMAGE
+00001104                           264  ; ----------------------------------------------------------------------------------
+00001104                           265  
+00001104= 46 49 4C 45 53 2F ...    266  FILEPATH        DC.B        'FILES/pixel_logo.bin',0
+0000111A                           267                  DS.W        0
+0000111A= 46 49 4C 45 53 2F ...    268  FILEPATHWIN     DC.B        'FILES/pixel_victoria.bin',0
+00001134                           269                  DS.W        0
+00001134= 46 49 4C 45 53 2F ...    270  FILEPATHLOSE    DC.B        'FILES/pixel_derrota.bin',0
+0000114C                           271                  DS.W        0
+0000114C                           272  BUFFERL         DS.B        1228800
+0012D14C                           273                  DS.W        0
+0012D14C= 00000000                 274  PBUFFERL        DC.L        0                
+0012D150                           275  TBUFFER         DS.B        479232
+001A2150                           276                  DS.W        0
+001A2150= 00000000                 277  PTBUFFER        DC.L        0
+001A2154                           278  WINBUFF         DS.B        1228800
+002CE154                           279                  DS.W        0
+002CE154                           280  LOSEBUFF        DS.B        1228800
+003FA154                           281                  DS.W        0
+003FA154                           282                  
+003FA154                           283  ; --- LOADING SCREEN RELATED VARIABLES ---------------------
+003FA154                           284  
+003FA154= 43 41 52 47 41 4E ...    285  MESSAGE         DC.B        'CARGANDO JUEGO',0
+003FA164                           286                  DS.W        0
+003FA164                           287  
+003FA164                           288                  
+003FA164                           289  ; --- RNG RELATED CONSTANS ---------------------------------
+003FA164                           290  
+003FA164  =0000006D                291  AMUL            EQU         $6D
+003FA164  =0000001B                292  CMUL            EQU         $1B
+003FA164  =00001000                293  MMOD            EQU         $1000
+003FA164                           294  
+003FA164                           295  ; --- MENU RELATED CONSTANTS -----------------------------------------------------
+003FA164                           296  ; THERE ARE ALL THE ATTACKS FROM EVERY POKEMON (INCLUDING OPPONENT)
+003FA164                           297  ; THERE ARE 3 DIFFERENT MENUS FOR EACH POKEMON THAT YOU HAVE
+003FA164                           298  ; COLOR MENU:
+003FA164                           299  ; MENUDARKGREY: COLOR OF THE BUTTON THAT IS NOT BEING POINTED
+003FA164                           300  ; MENUDGREY:    COLOR OF THE BUTTON THAT IS POINTED
+003FA164                           301  ; --------------------------------------------------------------------------------
+003FA164                           302  
+003FA164= 0010                     303  MENU            DC.W        16
+003FA166                           304  
+003FA166= 003FA1A6 003FA1B2 ...    305  ATCKPTR         DC.L        ATTACK1,ATTACK2,ATTACK3,ATTACK4
+003FA176= 003FA1D6 003FA1E2 ...    306                  DC.L        ATTACK5,ATTACK6,ATTACK7,ATTACK8
+003FA186= 003FA206 003FA212 ...    307                  DC.L        ATTACK9,ATTACK10,ATTACK11,ATTACK12
+003FA196= 003FA236 003FA242 ...    308                  DC.L        ATTACK13,ATTACK14,ATTACK15,ATTACK16
+003FA1A6                           309  
+003FA1A6= 4C 41 4E 5A 41 4C ...    310  ATTACK1         DC.B        'LANZALLAMAS',0
+003FA1B2= 48 49 44 52 4F 50 ...    311  ATTACK2         DC.B        'HIDROPULSO ',0
+003FA1BE= 47 41 52 52 41 20 ...    312  ATTACK3         DC.B        'GARRA DRAG.',0
+003FA1CA= 43 4F 4C 41 20 46 ...    313  ATTACK4         DC.B        'COLA FÉRREA',0
+003FA1D6= 50 53 CD 51 55 49 ...    314  ATTACK5         DC.B        'PSÍQUICO   ',0
+003FA1E2= 42 4F 4C 41 20 53 ...    315  ATTACK6         DC.B        'BOLA SOMBR.',0
+003FA1EE= 52 41 59 4F 20 20 ...    316  ATTACK7         DC.B        'RAYO       ',0
+003FA1FA= 52 4F 43 41 20 41 ...    317  ATTACK8         DC.B        'ROCA AFIL. ',0
+003FA206= 54 45 52 52 45 4D ...    318  ATTACK9         DC.B        'TERREMOTO  ',0
+003FA212= 54 49 4A 45 52 41 ...    319  ATTACK10        DC.B        'TIJERA X   ',0
+003FA21E= 46 55 45 52 5A 41 ...    320  ATTACK11        DC.B        'FUERZA LUN.',0
+003FA22A= 44 49 53 54 4F 52 ...    321  ATTACK12        DC.B        'DISTORSIÓN ',0
+003FA236= 50 55 4C 53 4F 20 ...    322  ATTACK13        DC.B        'PULSO UMBR.',0
+003FA242= 54 52 49 54 55 52 ...    323  ATTACK14        DC.B        'TRITURAR   ',0
+003FA24E= 45 53 54 4F 43 49 ...    324  ATTACK15        DC.B        'ESTOCISMO  ',0
+003FA25A= 52 41 59 4F 20 53 ...    325  ATTACK16        DC.B        'RAYO SOLAR ',0
+003FA266                           326  
+003FA266= 0002                     327  MENUBLAS        DC.W        2
+003FA268= 0703                     328                  DC.W        $0703
+003FA26A= 003FA1B2 003FA242        329  .STRLST         DC.L        ATTACK2,ATTACK14
+003FA272                           330  
+003FA272= 0002                     331  MENUCHAR        DC.W        2
+003FA274= 0703                     332                  DC.W        $0703
+003FA276= 003FA1A6 003FA236        333                  DC.L        ATTACK1,ATTACK13
+003FA27E                           334  
+003FA27E= 0002                     335  MENUVEN         DC.W        2
+003FA280= 0703                     336                  DC.W        $0703
+003FA282= 003FA25A 003FA24E        337                  DC.L        ATTACK16,ATTACK15
+003FA28A                           338  
+003FA28A                           339  MENUBLASV       DS.W        3
+003FA290                           340  MENUCHARV       DS.W        3
+003FA296                           341  MENUVENV        DS.W        3
+003FA29C                           342  
+003FA29C  =00808080                343  MENUDARKGREY    EQU         $808080
+003FA29C  =00C0C0C0                344  MENUGREY        EQU         $C0C0C0
+003FA29C                           345  
+003FA29C                           346         
+003FA29C                           347  
+003FA29C                           348  ; --- POKEMON RELATED CONSTANTS ----------------------------------------
+003FA29C                           349  ; ADDRES TO ALL POKEMON SPRITES(TEAM AND OPONENT) AND POINTERS TO SPRITE
+003FA29C                           350  ; PTRADCNT:     AMOUNT TO BE ADDED TO SIGN UP THE NEXT SPRITE
+003FA29C                           351  ; DEFEATPKM:    AMOUNT OF POKEMON'S THAT YOUR OPPONENT DEFEATED
+003FA29C                           352  ; DEFEATOP:     AMOUNT OF POKEMON'S THAT YOU DEFEATED
+003FA29C                           353  ; ----------------------------------------------------------------------
+003FA29C= 53 50 52 49 54 45 ...    354  TPTRBLAS        DC.B        'SPRITES/POKEMON/TEAM/pixel_blastoise.bin',0
+003FA2C6= 5350 5249 5445 5...      355  TPTRCHAR        DC.W        'SPRITES/POKEMON/TEAM/pixel_charizard.bin',0
+003FA2F0= 5350 5249 5445 5...      356  TPTRVEN         DC.W        'SPRITES/POKEMON/TEAM/pixel_venasur.bin',0
+003FA318                           357  
+003FA318= 53 50 52 49 54 45 ...    358  BPTRART         DC.B        'SPRITES/POKEMON/BATTLE/pixel_articuno.bin',0
+003FA342= 53 50 52 49 54 45 ...    359  BPTRMEW         DC.B        'SPRITES/POKEMON/BATTLE/pixel_mew.bin',0
+003FA367= 53 50 52 49 54 45 ...    360  BPTRMEWT        DC.B        'SPRITES/POKEMON/BATTLE/pixel_mewtwo.bin',0
+003FA38F= 53 50 52 49 54 45 ...    361  BPTRMOLT        DC.B        'SPRITES/POKEMON/BATTLE/pixel_moltres.bin',0
+003FA3B8= 53 50 52 49 54 45 ...    362  BPTRZAP         DC.B        'SPRITES/POKEMON/BATTLE/pixel_zapdos.bin',0
+003FA3E0                           363  
+003FA3E0                           364  
+003FA3E0                           365                  
+003FA3E0= 00000000                 366  PTRBLAS         DC.L        0   ; POINTERS TO SPRITES IN BUFFERL
+003FA3E4= 00000000                 367  PTRCHAR         DC.L        0
+003FA3E8= 00000000                 368  PTRVEN          DC.L        0
+003FA3EC= 00000000                 369  PTRART          DC.L        0
+003FA3F0= 00000000                 370  PTRMEW          DC.L        0
+003FA3F4= 00000000                 371  PTRMEWT         DC.L        0
+003FA3F8= 00000000                 372  PTRMOLT         DC.L        0
+003FA3FC= 00000000                 373  PTRZAP          DC.L        0
+003FA400                           374  
+003FA400  =00027000                375  PTRADCNT        EQU         $27000
+003FA400                           376  
+003FA400                           377  DEFEATPKM       DS.B        1
+003FA402                           378                  DS.W        0 
+003FA402                           379  DEFEATOP        DS.B        1
+003FA404                           380                  DS.W        0
+003FA404                           381  
+003FA404                           382  ; --- POKEMON SIZE RELATED CONSTANTS -----------------------------------
+003FA404                           383  ; WIDTH AND HEIGHT OF THE SPRITES
+003FA404                           384  ; ----------------------------------------------------------------------
+003FA404  =000000D2                385  STDWIDTH        EQU         210
+003FA404  =000000BE                386  STDHEIGH        EQU         190
+003FA404                           387  
+003FA404                           388  ; --- POKEMON DRAWING COORGINATE RELATED CONSTANTS
+003FA404                           389  
+003FA404  =00000140                390  OPKMCORX        EQU         320    ; OPPONENT COORDINATES
+003FA404  =00000000                391  OPKMCORY        EQU         0
+003FA404  =00000030                392  TPKMCORX        EQU         48     ; PLAYER COORDINATES               
+003FA404  =00000122                393  TPKMCORY        EQU         290  
+003FA404                           394  
+003FA404                           395  ; --- POKEMON LIFE BAR RELATED CONSTANTS -------------------------------------------
+003FA404                           396  ; COLORS OF THE BAR:                FILLCOL, DMGCOL, PENCOL 
+003FA404                           397  ; (WE REPAINT WHIT WHITE WHEN THE POKEMON ASSUME DAMAGE)
+003FA404                           398  ; SIZE OF LIFE BAR:                 BARWIDTH,BARHEIGH
+003FA404                           399  ; OPPONENT LIFE BAR COORDENATES:    OBARCORX, OBARCORY, OPSCORX, OPSCORY
+003FA404                           400  ; TEAM LIFE BAR COORDENATES:        TBARCORX, TBARCORY, TPSCORX, TPSCORY
+003FA404                           401  ;----------------------------------------------------------------------------------
+003FA404  =005D5D5D                402  FILLCOL         EQU         $005D5D5D
+003FA404  =00AAAAAA                403  DMGFILLC        EQU         $00AAAAAA
+003FA404  =000E0E0E                404  PENCOL          EQU         $000E0E0E
+003FA404  =00000118                405  BARWIDTH        EQU         280
+003FA404  =00000055                406  BARHEIGH        EQU         85
+003FA404  =0000001C                407  OBARCORX        EQU         28
+003FA404  =0000002B                408  OBARCORY        EQU         43
+003FA404  =0000015A                409  TBARCORX        EQU         346
+003FA404  =0000012C                410  TBARCORY        EQU         300
+003FA404  =0000011E                411  OPSCORX         EQU         286
+003FA404  =00000035                412  OPSCORY         EQU         53
+003FA404  =00000138                413  TPSCORX         EQU         312
+003FA404  =00000134                414  TPSCORY         EQU         308
+003FA404= 50 53 00                 415  PSMSG           DC.B        'PS',0
+003FA408                           416                  DS.W        0
+003FA408                           417                 
+003FA408                           418  ; --- POKEMON ATTACKS RELATED CONSTANTS ----------------------------------------------
+003FA408                           419  ; MAXIMUMLIFE: 280PS (TMAXPS IS 600 BECAUSE THE LIFE BAR IS IN DIFFERENT COORDINATES)
+003FA408                           420  ; DMGPTR:      POINTER THAT HAVE ALL DE DIFERENTS DAMAGES THAT THE POKEMON CAN DO
+003FA408                           421  ;              (NOT COUNTING SUPER EFFECTIVE) 
+003FA408                           422  ; ------------------------------------------------------------------------------------
+003FA408  =00000118                423  OMAXPS          EQU         280
+003FA408  =00000258                424  TMAXPS          EQU         600
+003FA408= 003FA410 003FA411        425  DMGPTR          DC.L        DMG1,DMG2
+003FA410= 14                       426  DMG1            DC.B        20
+003FA411= 19                       427  DMG2            DC.B        25     
+003FA412                           428  ; --- ALL REALTED POKEMON THEMES ---------------------------------------------------
+003FA412                           429  ; THEMES THAT HAVE THE GAME
+003FA412                           430  ; PTRTHEME:     POINTER THAT HAVE ALL THE ADDRES OF THE THEMES
+003FA412                           431  ;-----------------------------------------------------------------------------------
+003FA412= 003FA42E 003FA43F ...    432  PTRTHEME        DC.L        MTHEME,BLUETHM,NTHM,ELITETHM,NEOTHM,RESHTHM,WINTHM
+003FA42E= 54 48 45 4D 45 53 ...    433  MTHEME          DC.B        'THEMES/intro.wav',0            ; REF 0
+003FA43F= 54 48 45 4D 45 53 ...    434  BLUETHM         DC.B        'THEMES/champion_blue.wav',0    ; REF 1
+003FA458= 54 48 45 4D 45 53 ...    435  NTHM            DC.B        'THEMES/final_N.wav',0          ; REF 2
+003FA46B= 54 48 45 4D 45 53 ...    436  ELITETHM        DC.B        'THEMES/elite_four.wav',0       ; REF 3
+003FA481= 54 48 45 4D 45 53 ...    437  NEOTHM          DC.B        'THEMES/neo_team_plasma.wav',0  ; REF 4
+003FA49C= 54 48 45 4D 45 53 ...    438  RESHTHM         DC.B        'THEMES/vs_reshiram.wav',0      ; REF 5
+003FA4B3= 54 48 45 4D 45 53 ...    439  WINTHM          DC.B        'THEMES/win_theme.wav',0        ; REF 6
+003FA4C8                           440  
+003FA4C8                           441  ; ----------------------------------------------------------   
+003FA4C8                           442  
+003FA4C8                           443  
+003FA4C8                           444  ;--- END GAME RELATED CONSTANT ----------------------------
+003FA4C8                           445  
+003FA4C8                           446  END             DS.B        1
+003FA4CA                           447                  DS.W        0
+003FA4CA                           448  
+003FA4CA                           449  
+003FA4CA                           450  
+003FA4CA                           451  
+003FA4CA                           452  
+003FA4CA                           453  
+003FA4CA                           454  
+003FA4CA                           455  
+003FA4CA                           456  
+003FA4CA                           457  
+003FA4CA                           458  
+003FA4CA                           459  
+003FA4CA                           460  
+003FA4CA                           461  
+003FA4CA                           462  
+003FA4CA                           463  
+003FA4CA                           464  
+003FA4CA                           465  
+003FA4CA                           466  
+003FA4CA                           467  
+003FA4CA                           468  
+003FA4CA                           469  
+003FA4CA                           470  
+003FA4CA                           471  
+003FA4CA                           472  
+003FA4CA                           473  
+003FA4CA                           474  
+003FA4CA                           475  
+003FA4CA                           476  
+003FA4CA                           477  
+003FA4CA                           478  
+003FA4CA                           479  -------------------- end include --------------------
+003FA4CA                           480      INCLUDE "RANDOM.X68"
+003FA4CA                           481  
+003FA4CA                           482  
+003FA4CA                           483  ; ----------------------------------------------------------
+003FA4CA                           484  GENRAN
+003FA4CA                           485      
+003FA4CA  48A7 B800                486      MOVEM.W D0/D2-D4,-(A7)
+003FA4CE                           487      
+003FA4CE                           488      ; GET TIME SINCE MIDNIGHT (SEED)
+003FA4CE  103C 0008                489      MOVE.B #8,D0
+003FA4D2  4E4F                     490      TRAP #15
+003FA4D4  3401                     491      MOVE.W D1,D2
+003FA4D6  4281                     492      CLR.L D1
+003FA4D8                           493      
+003FA4D8                           494      ; USE LCR ALGORITHM
+003FA4D8  363C 006D                495      MOVE.W #AMUL,D3
+003FA4DC  C6C2                     496      MULU.W D2,D3
+003FA4DE  0643 001B                497      ADD.W #CMUL,D3
+003FA4E2  86FC 1000                498      DIVU.W #MMOD,D3
+003FA4E6  E08B                     499      LSR.L #8,D3
+003FA4E8  E08B                     500      LSR.L #8,D3
+003FA4EA  3839 003FB62E            501      MOVE.W (TOP),D4
+003FA4F0  9879 003FB62C            502      SUB.W (LOW),D4
+003FA4F6  86C4                     503      DIVU.W D4,D3
+003FA4F8  E08B                     504      LSR.L #8,D3
+003FA4FA  E08B                     505      LSR.L #8,D3
+003FA4FC  D679 003FB62C            506      ADD.W (LOW),D3
+003FA502  3203                     507      MOVE.W D3,D1
+003FA504                           508      
+003FA504  4C9F 001D                509      MOVEM.W (A7)+,D0/D2-D4
+003FA508                           510  
+003FA508  4E75                     511      RTS
+003FA50A                           512      
+003FA50A                           513  ; ----------------------------------------------------------
+003FA50A                           514  
+003FA50A                           515  
+003FA50A                           516  
+003FA50A                           517  
+003FA50A                           518  
+003FA50A                           519  
+003FA50A                           520  
+003FA50A                           521  
+003FA50A                           522  
+003FA50A                           523  
+003FA50A                           524  
+003FA50A                           525  
+003FA50A                           526  
+003FA50A                           527  
+003FA50A                           528  
+003FA50A                           529  
+003FA50A                           530  -------------------- end include --------------------
+003FA50A                           531      INCLUDE "FILEREADER.X68"
+003FA50A                           532  ; ----------------------------------------------------------
+003FA50A                           533  READFILE
+003FA50A                           534  ; READS ANY GIVEN FILE
+003FA50A                           535  ; INPUT     : BUFFER IN A0 AND PATH IN A1
+003FA50A                           536  ; OUTUT     : NONE
+003FA50A                           537  ; MODIFIES  : NONE
+003FA50A                           538  ; ----------------------------------------------------------
+003FA50A                           539      
+003FA50A  48E7 F8C0                540      MOVEM.L D0-D4/A0-A1,-(A7)
+003FA50E                           541      
+003FA50E                           542      ; PREPARE THE FILE TO READ
+003FA50E  4EB9 003FA550            543      JSR READ
+003FA514                           544      
+003FA514                           545      ; DRAW LINE OF PIXELS
+003FA514  4200                     546      CLR.B D0
+003FA516                           547      ; USING D1 AND D2 AS COORDINATES
+003FA516  323C 0000                548      MOVE.W #0,D1
+003FA51A  343C 0000                549      MOVE.W #0,D2
+003FA51E  383C 01DF                550      MOVE.W #SCRHEIGH-1,D4   ; Y ITERATIONS
+003FA522                           551      
+003FA522                           552  .DRAWY
+003FA522                           553  
+003FA522  363C 027F                554      MOVE.W #SCRWIDTH-1,D3   ; X ITERATIONS
+003FA526                           555      
+003FA526                           556      .DRAWX:
+003FA526                           557          
+003FA526  3F01                     558          MOVE.W D1,-(A7)
+003FA528  4281                     559          CLR.L D1
+003FA52A  2218                     560          MOVE.L (A0)+,D1 ; LOAD 4 BYTES
+003FA52C  103C 0050                561          MOVE.B #80,D0
+003FA530  4E4F                     562          TRAP #15
+003FA532  321F                     563          MOVE.W (A7)+,D1
+003FA534                           564          
+003FA534  103C 0052                565          MOVE.B #82,D0
+003FA538  4E4F                     566          TRAP #15
+003FA53A  5241                     567          ADDQ.W #1,D1
+003FA53C  51CB FFE8                568          DBRA D3,.DRAWX
+003FA540                           569      
+003FA540  323C 0000                570      MOVE.W #0,D1
+003FA544  5242                     571      ADDQ.W #1,D2
+003FA546  51CC FFDA                572      DBRA D4,.DRAWY  
+003FA54A                           573          
+003FA54A  4CDF 031F                574      MOVEM.L (A7)+,D0-D4/A0-A1
+003FA54E  4E75                     575      RTS
+003FA550                           576  
+003FA550                           577  
+003FA550                           578  ; ----------------------------------------------------------
+003FA550                           579  
+003FA550                           580  ; ----------------------------------------------------------
+003FA550                           581  READ
+003FA550                           582  ; READS THE BINARY FILE IN ORDER TO LOAD IT TO MEMORY
+003FA550                           583  ; INPUT     : 'A' CHA
+003FA550                           584  ; OUTUT     : NONE
+003FA550                           585  ; MODIFIES  : NONE
+003FA550                           586  ; ----------------------------------------------------------
+003FA550                           587      
+003FA550  48E7 E040                588      MOVEM.L D0-D2/A1,-(A7)
+003FA554                           589      ; CLOSE ALL OPENED FILES
+003FA554  103C 0032                590      MOVE.B #50,D0
+003FA558  4E4F                     591      TRAP #15
+003FA55A                           592      
+003FA55A                           593      ; OPEN FILE (A1 POINTS TO THE FILE)
+003FA55A  103C 0033                594      MOVE.B #51,D0
+003FA55E  4E4F                     595      TRAP #15
+003FA560                           596      
+003FA560                           597      ; READ BYTES
+003FA560  2248                     598      MOVE.L A0,A1   
+003FA562                           599  .LOOP
+003FA562  103C 0035                600      MOVE.B #53,D0
+003FA566  7404                     601      MOVE.L #4,D2
+003FA568  4E4F                     602      TRAP #15
+003FA56A  D3C2                     603      ADDA.L D2,A1
+003FA56C  4A00                     604      TST.B D0    ; CHECK EOF OR ERROR
+003FA56E  67F2                     605      BEQ .LOOP
+003FA570  4211                     606      CLR.B (A1)
+003FA572                           607      
+003FA572                           608      ; FINALLY CLOSE OPENED FILE
+003FA572  103C 0038                609      MOVE.B #56,D0
+003FA576  4E4F                     610      TRAP #15
+003FA578                           611      
+003FA578  4CDF 0207                612      MOVEM.L (A7)+,D0-D2/A1
+003FA57C                           613      
+003FA57C  4E75                     614      RTS 
+003FA57E                           615  
+003FA57E                           616  ; ----------------------------------------------------------
+003FA57E                           617  
+003FA57E                           618  
+003FA57E                           619  
+003FA57E                           620  
+003FA57E                           621  
+003FA57E                           622  
+003FA57E                           623  
+003FA57E                           624  
+003FA57E                           625  -------------------- end include --------------------
+003FA57E                           626      INCLUDE "LOADSCREEN.X68"
+003FA57E                           627     
+003FA57E                           628  ; ----------------------------------------------------------
+003FA57E                           629  LOADGAME
+003FA57E                           630  ; SHOWS A SCREEN MESSAGE TO USER WHILE AWAITING THE
+003FA57E                           631  ; GAME TO BE SET UP
+003FA57E                           632  ; INPUT     : NONE
+003FA57E                           633  ; OUTPUT    : NONE
+003FA57E                           634  ; MODIFIES  : NONE
+003FA57E                           635  ; -----------------------------------------------------------
+003FA57E  4EB9 003FB38A            636      JSR     MAINTHM
+003FA584  13FC 0001 003FB632       637      MOVE.B  #1,(DOREAD)
+003FA58C  207C 0000114C            638      MOVE.L #BUFFERL,A0
+003FA592  227C 00001104            639      MOVE.L #FILEPATH,A1
+003FA598  4EB9 003FA50A            640      JSR READFILE
+003FA59E  4E75                     641      RTS
+003FA5A0                           642      
+003FA5A0                           643  ; -----------------------------------------------------------
+003FA5A0                           644  
+003FA5A0                           645  ; ----------------------------------------------------------
+003FA5A0                           646  STRTGAME
+003FA5A0                           647  ; SHOWS THE MESSAGE TO START THE GAME IN LOADED SCREEN 
+003FA5A0                           648  ; INPUT     : NONE
+003FA5A0                           649  ; OUTPUT    : NONE
+003FA5A0                           650  ; MODIFIES  : NONE
+003FA5A0                           651  ; -----------------------------------------------------------
+003FA5A0                           652      
+003FA5A0  48A7 F800                653      MOVEM.W D0-D4,-(A7)
+003FA5A4                           654      
+003FA5A4                           655      ; SET PEN COLOR
+003FA5A4  103C 0050                656      MOVE.B #80,D0
+003FA5A8  7200                     657      MOVE.L #$00000000,D1
+003FA5AA  4E4F                     658      TRAP #15
+003FA5AC                           659      
+003FA5AC                           660      ; SET FILL COLOR
+003FA5AC  103C 0051                661      MOVE.B #81,D0
+003FA5B0  223C 00FFFFFF            662      MOVE.L #$00FFFFFF,D1
+003FA5B6  4E4F                     663      TRAP #15
+003FA5B8                           664      
+003FA5B8                           665      ; DRAW WHITE RECTANGLE
+003FA5B8  103C 0057                666      MOVE.B #87,D0
+003FA5BC  323C FFFF                667      MOVE.W #-1,D1
+003FA5C0  343C 01E0                668      MOVE.W #SCRHEIGH,D2
+003FA5C4  363C 0280                669      MOVE.W #SCRWIDTH,D3
+003FA5C8  383C FFFF                670      MOVE.W #-1,D4
+003FA5CC  4E4F                     671      TRAP #15
+003FA5CE                           672      
+003FA5CE  4C9F 001F                673      MOVEM.W (A7)+,D0-D4
+003FA5D2                           674  
+003FA5D2  4E75                     675      RTS
+003FA5D4                           676      
+003FA5D4                           677  
+003FA5D4                           678  
+003FA5D4                           679  
+003FA5D4                           680  
+003FA5D4                           681  
+003FA5D4                           682  
+003FA5D4                           683  
+003FA5D4                           684  
+003FA5D4                           685  -------------------- end include --------------------
+003FA5D4                           686      INCLUDE "MENU.X68"
+003FA5D4                           687   *-----------------------------------------------------------
+003FA5D4                           688  
+003FA5D4                           689  ; ----------------------------------------------------------
+003FA5D4                           690  MENUINIT
+003FA5D4                           691  ; INITIALIZE MENU GAME SYSTEM.
+003FA5D4                           692  ; INPUT     : NONE
+003FA5D4                           693  ; OUTPUT    : NONE
+003FA5D4                           694  ; MODIFIES  : NONE
+003FA5D4                           695  ; ----------------------------------------------------------
+003FA5D4  2089                     696          MOVE.L  A1,(A0)
+003FA5D6  4268 0004                697          CLR.W   4(A0)
+003FA5DA  4E75                     698          RTS
+003FA5DC                           699  ;-----------------------------------------------------------
+003FA5DC                           700  MENUPD
+003FA5DC                           701  ; INPUT    : A0 - POINTER TO VARIABLE DATA BLOCK
+003FA5DC                           702  ;            A1 - POINTER TO STATIC DATA BLOCK
+003FA5DC                           703  ; OUTPUT   : NONE
+003FA5DC                           704  ; MODIFIES : NONE
+003FA5DC                           705  ;-----------------------------------------------------------
+003FA5DC  48E7 8040                706          MOVEM.L D0/A1,-(A7)
+003FA5E0  0839 0005 003FB663       707          BTST.B  #KBDPOSLEFT,(KBDEDGE) ;MIRAMOS SI HA SIDO PRESIONADO "LEFT
+003FA5E8  6700 0008                708          BEQ     .CHKR
+003FA5EC  4EB9 003FA634            709          JSR     .PRE  
+003FA5F2  0839 0004 003FB663       710  .CHKR   BTST.B  #KBDPOSRIGHT,(KBDEDGE) ;MIRAMOS SI HA PRESIONADO "RIGHT"
+003FA5FA  6700 0008                711          BEQ     .CHKZ
+003FA5FE  4EB9 003FA61C            712          JSR     .NXT
+003FA604  0839 0002 003FB663       713  .CHKZ   BTST.B  #KBDPOSATTACK,(KBDEDGE) ;MIRAMOS SI HA PRESIONADO "Z"
+003FA60C  6700 0008                714          BEQ     .DONE
+003FA610  4EB9 003FA64E            715          JSR     .CHKACTPKM
+003FA616  4CDF 0201                716  .DONE   MOVEM.L (A7)+,D0/A1
+003FA61A  4E75                     717          RTS
+003FA61C                           718          
+003FA61C                           719          ;AVANCAR SIGUIENTE OPCIÓN
+003FA61C  2250                     720  .NXT    MOVE.L  (A0),A1
+003FA61E  3011                     721          MOVE.W  (A1),D0
+003FA620  5268 0004                722          ADDQ.W  #1,4(A0) ;SIGUIENTE OPCIÓN
+003FA624  B068 0004                723          CMP.W   4(A0),D0 ;COMPARAR CON EL NÚMERO DE ITEMS
+003FA628  6F00 0004                724          BLE     .NRES
+003FA62C  4E75                     725          RTS
+003FA62E  4268 0004                726  .NRES   CLR.W   4(A0)
+003FA632  4E75                     727          RTS
+003FA634                           728          
+003FA634                           729          ;IR A LA OPCIÓN ANTERIOR
+003FA634  4A68 0004                730  .PRE    TST.W   4(A0)   ;SI LA OPCION ACTUAL ES 0 
+003FA638  6700 0008                731          BEQ     .PRES   ;RESETEAMOS
+003FA63C  5368 0004                732          SUBQ.W  #1,4(A0)
+003FA640  4E75                     733          RTS
+003FA642  2250                     734  .PRES   MOVE.L  (A0),A1
+003FA644  3011                     735          MOVE.W  (A1),D0
+003FA646  5340                     736          SUBQ.W  #1,D0
+003FA648  3140 0004                737          MOVE.W  D0,4(A0)
+003FA64C  4E75                     738          RTS
+003FA64E                           739          ;MIRAR MOVIMIENTO POKEMON
+003FA64E                           740  
+003FA64E                           741  .CHKACTPKM
+003FA64E  33FC 0000 003FB65C       742          MOVE.W  #0,(NXTTURN) ;NOS CONCEDEMOS TURNO
+003FA656  4EB9 003FA6E8            743          JSR     RESTARTSEL   ;REINICIAR LOS MOVIMIENTOS SELECCIONADOS
+003FA65C  1239 003FB63A            744          MOVE.B  (ACTCHAR),D1
+003FA662  B23C 0001                745          CMP.B   #1,D1
+003FA666  6700 0014                746          BEQ     .CHKMVCHAR
+003FA66A  1239 003FB63B            747          MOVE.B  (ACTBLAST),D1
+003FA670  B23C 0001                748          CMP.B   #1,D1
+003FA674  6700 0016                749          BEQ     .CHKMVBLAST
+003FA678  6000 0022                750          BRA     .CHKMVVEN
+003FA67C                           751          
+003FA67C                           752  .CHKMVCHAR                  ;MIRAR MOVIMIENTOS DE CHARIZARD
+003FA67C  3228 0004                753          MOVE.W 4(A0),D1
+003FA680  B27C 0000                754          CMP.W   #0,D1
+003FA684  6700 0026                755          BEQ     .LANZALLAMAS
+003FA688  6000 002C                756          BRA     .PULSOUMBRIO
+003FA68C                           757  .CHKMVBLAST                 ;MIRAR MOVIMIENTOS DE BLASTOISE
+003FA68C  3228 0004                758          MOVE.W 4(A0),D1
+003FA690  B27C 0000                759          CMP.W   #0,D1
+003FA694  6700 002A                760          BEQ     .HIDROPULSO
+003FA698  6000 0030                761          BRA     .TRITURAR
+003FA69C                           762  .CHKMVVEN                   ;MIRAR MOVIMIENTOS DE VENASAUR
+003FA69C  3228 0004                763          MOVE.W 4(A0),D1
+003FA6A0  B27C 0000                764          CMP.W   #0,D1
+003FA6A4  6700 002E                765          BEQ     .RAYOSOL
+003FA6A8  6000 0034                766          BRA     .ZUMBIDO
+003FA6AC                           767  .LANZALLAMAS
+003FA6AC  13FC 0001 003FB642       768          MOVE.B #1,(SELLANZ)
+003FA6B4  4E75                     769          RTS
+003FA6B6                           770  .PULSOUMBRIO
+003FA6B6  13FC 0001 003FB643       771          MOVE.B #1,(SELPULS)
+003FA6BE  4E75                     772          RTS
+003FA6C0                           773  .HIDROPULSO
+003FA6C0  13FC 0001 003FB644       774          MOVE.B #1,(SELHIDR)
+003FA6C8  4E75                     775          RTS
+003FA6CA                           776  .TRITURAR
+003FA6CA  13FC 0001 003FB645       777          MOVE.B #1,(SELTRIT)
+003FA6D2  4E75                     778          RTS
+003FA6D4                           779  .RAYOSOL
+003FA6D4  13FC 0001 003FB646       780          MOVE.B #1,(SELRAYO)
+003FA6DC  4E75                     781          RTS
+003FA6DE                           782  .ZUMBIDO
+003FA6DE  13FC 0001 003FB647       783          MOVE.B #1,(SELZUMB)
+003FA6E6  4E75                     784          RTS
+003FA6E8                           785  RESTARTSEL
+003FA6E8  13FC 0000 003FB642       786      MOVE.B #0,(SELLANZ)
+003FA6F0  13FC 0000 003FB643       787      MOVE.B #0,(SELPULS)
+003FA6F8  13FC 0000 003FB644       788      MOVE.B #0,(SELHIDR)
+003FA700  13FC 0000 003FB645       789      MOVE.B #0,(SELTRIT)
+003FA708  13FC 0000 003FB646       790      MOVE.B #0,(SELRAYO)
+003FA710  13FC 0000 003FB647       791      MOVE.B #0,(SELZUMB)
+003FA718  4E75                     792      RTS
+003FA71A                           793  ;----------------------------------------------------------
+003FA71A                           794  MENUPLOT
+003FA71A                           795  ; PLOTS A MENU
+003FA71A                           796  ; INPUT     : A0 - POINTER TO VARIABLE DATA BLOCK
+003FA71A                           797  ; OUTPUT    : NONE
+003FA71A                           798  ; MODIFIES  : NONE
+003FA71A                           799  ;----------------------------------------------------------
+003FA71A  48E7 FC70                800              MOVEM.L D0-D5/A1-A3,-(A7)       ; SAVE REGISTERS
+003FA71E  2450                     801              MOVE.L  (A0),A2                 ; A2: STATIC DATA BLOCK
+003FA720  3412                     802              MOVE.W  (A2),D2                 ; D2: NUMBER OF OPTIONS
+003FA722  5342                     803              SUBQ.W  #1,D2                   ; D2: NUMBER OF OPTIONS - 1
+003FA724  322A 0002                804              MOVE.W  2(A2),D1                ; D1: X,Y
+003FA728  0641 1A0E                805              ADD.W   #$1A0E,D1
+003FA72C  47EA 0004                806              LEA     4(A2),A3                ; FIRST STRING POINTER
+003FA730  3628 0004                807              MOVE.W  4(A0),D3                ; SELECTED OPTION
+003FA734  4244                     808              CLR.W   D4                      ; OPTION NUMBER
+003FA736  3A01                     809  .LOOP       MOVE.W  D1,D5                   ; STORE D1
+003FA738  103C 0051                810              MOVE.B  #81,D0                  ; PREPARE TO CHANGE COLOR
+003FA73C  223C 00808080            811              MOVE.L  #MENUDARKGREY,D1
+003FA742  B843                     812              CMP.W   D3,D4                   ; IF PLOTTED OPTION IS NOT SELECTED
+003FA744  6600 0008                813              BNE     .CONT                   ; SET BLACK COLOR
+003FA748  223C 00C0C0C0            814              MOVE.L  #MENUGREY,D1             ; OTHERWISE, SET RED COLOR
+003FA74E  4E4F                     815  .CONT       TRAP    #15                     ; DEFINE THE COLOR
+003FA750  5244                     816              ADDQ.W  #1,D4                   ; NEXT OPTION
+003FA752  3205                     817              MOVE.W  D5,D1                   ; RESTORE D1
+003FA754  103C 000B                818              MOVE.B  #11,D0                  ; POSITION TEXT
+003FA758  4E4F                     819              TRAP    #15
+003FA75A  0641 1000                820              ADD.W   #$1000,D1
+003FA75E  103C 000D                821              MOVE.B  #13,D0
+003FA762  225B                     822              MOVE.L  (A3)+,A1                ; GET STRING
+003FA764  4E4F                     823              TRAP    #15                     ; PRINT STRING
+003FA766  51CA FFCE                824              DBRA.W  D2,.LOOP                ; LOOP FOR ALL OPTIONS
+003FA76A  4CDF 0E3F                825              MOVEM.L (A7)+,D0-D5/A1-A3       ; RESTORE REGISTERS
+003FA76E  4E75                     826              RTS
+003FA770                           827  
+003FA770                           828  
+003FA770                           829  
+003FA770                           830  -------------------- end include --------------------
+003FA770                           831      INCLUDE "SYSBATTLE.X68"
+003FA770                           832  ; ----------------------------------------------------------
+003FA770                           833  BTLINIT
+003FA770                           834  ; INITIALIZE THE BATTLE (ONLY WHEN EVERITHING IS SET UP)    
+003FA770                           835  ; INPUT     : NONE
+003FA770                           836  ; OUTPUT    : NONE
+003FA770                           837  ; MODIFIES  : NONE
+003FA770                           838  ; ----------------------------------------------------------    
+003FA770                           839      
+003FA770                           840      ; FROM THE AVAILABLE POKEMON CHOOSE TWO FOR FIRST
+003FA770  48E7 F840                841      MOVEM.L D0-D4/A1,-(A7)
+003FA774  33FC 0001 003FB634       842      MOVE.W #1,(DRAWYO)
+003FA77C  33FC 0001 003FB62C       843      MOVE.W #1,(LOW)
+003FA784  33FC 0004 003FB62E       844      MOVE.W #4,(TOP)
+003FA78C  4EB9 003FA4CA            845      JSR GENRAN
+003FA792  B27C 0001                846      CMP.W #1,D1
+003FA796  6700 000E                847      BEQ .SELBLAS
+003FA79A  B27C 0002                848      CMP.W #2,D1
+003FA79E  6700 0020                849      BEQ .SELCHAR
+003FA7A2  6600 0036                850      BNE .SELVEN
+003FA7A6                           851      
+003FA7A6                           852  .SELBLAS
+003FA7A6                           853      
+003FA7A6  2079 003FA3E0            854      MOVE.L (PTRBLAS),A0
+003FA7AC  13FC 0001 003FB63B       855      MOVE.B #1,(ACTBLAST)
+003FA7B4  4EB9 003FB03A            856      JSR DRAWPKM
+003FA7BA  4E41                     857      TRAP #1
+003FA7BC  6000 0032                858      BRA .CONTO
+003FA7C0                           859  
+003FA7C0                           860  .SELCHAR
+003FA7C0                           861  
+003FA7C0  2079 003FA3E4            862      MOVE.L (PTRCHAR),A0
+003FA7C6  13FC 0001 003FB63A       863      MOVE.B #1,(ACTCHAR)
+003FA7CE  4EB9 003FB03A            864      JSR DRAWPKM
+003FA7D4  4E41                     865      TRAP #1
+003FA7D6  6000 0018                866      BRA .CONTO
+003FA7DA                           867  
+003FA7DA                           868  .SELVEN
+003FA7DA                           869      
+003FA7DA  2079 003FA3E8            870      MOVE.L (PTRVEN),A0
+003FA7E0  13FC 0001 003FB63C       871      MOVE.B #1,(ACTVEN)
+003FA7E8  4EB9 003FB03A            872      JSR DRAWPKM
+003FA7EE  4E41                     873      TRAP #1
+003FA7F0                           874      
+003FA7F0                           875  .CONTO   
+003FA7F0                           876      
+003FA7F0  23C8 003FB650            877      MOVE.L A0,(TFPKMRLS)    ; GET PLAYER FIRST POKEMON
+003FA7F6                           878    
+003FA7F6                           879      ; CHOOSE NOW RANDOM POKEMON TO START BATTLE WITH
+003FA7F6  33FC 0000 003FB634       880      MOVE.W #0,(DRAWYO)
+003FA7FE  33FC 0006 003FB62E       881      MOVE.W #6,(TOP)
+003FA806  4EB9 003FA4CA            882      JSR GENRAN
+003FA80C  B27C 0001                883      CMP.W #1,D1
+003FA810  6700 001E                884      BEQ .SELART
+003FA814  B27C 0002                885      CMP.W #2,D1
+003FA818  6700 0036                886      BEQ .SELMOLT
+003FA81C  B27C 0003                887      CMP.W #3,D1
+003FA820  6700 004E                888      BEQ .SELZAP
+003FA824  B27C 0004                889      CMP.W #4,D1
+003FA828  6700 0066                890      BEQ .SELMEW
+003FA82C  6600 0082                891      BNE .SELMEWT
+003FA830                           892      
+003FA830                           893  .SELART
+003FA830  4EB9 003FB3AA            894      JSR     PLAYBLUE
+003FA836  2079 003FA3EC            895      MOVE.L (PTRART),A0
+003FA83C  13FC 0001 003FB63E       896      MOVE.B #1,(ACTART)
+003FA844  4EB9 003FB03A            897      JSR DRAWPKM
+003FA84A  4E41                     898      TRAP #1
+003FA84C  6000 007E                899      BRA .CONTI
+003FA850                           900     
+003FA850                           901  .SELMOLT
+003FA850  4EB9 003FB40A            902      JSR     PLAYRESH
+003FA856  2079 003FA3F8            903      MOVE.L (PTRMOLT),A0
+003FA85C  13FC 0001 003FB63D       904      MOVE.B #1,(ACTMOLT)
+003FA864  4EB9 003FB03A            905      JSR DRAWPKM
+003FA86A  4E41                     906      TRAP #1
+003FA86C  6000 005E                907      BRA .CONTI
+003FA870                           908  
+003FA870                           909  .SELZAP
+003FA870  4EB9 003FB42A            910      JSR PLAYELIT
+003FA876  2079 003FA3FC            911      MOVE.L (PTRZAP),A0
+003FA87C  13FC 0001 003FB63F       912      MOVE.B #1,(ACTZAPD)
+003FA884  4EB9 003FB03A            913      JSR DRAWPKM
+003FA88A  4E41                     914      TRAP #1
+003FA88C  6000 003E                915      BRA .CONTI
+003FA890                           916  
+003FA890                           917  .SELMEW
+003FA890  4EB9 003FB3CA            918      JSR     PLAYN
+003FA896  2079 003FA3F0            919      MOVE.L (PTRMEW),A0
+003FA89C  13FC 0001 003FB640       920      MOVE.B #1,(ACTMEW)
+003FA8A4  4EB9 003FB03A            921      JSR DRAWPKM
+003FA8AA  4E41                     922      TRAP #1
+003FA8AC  6000 001E                923      BRA .CONTI
+003FA8B0                           924  
+003FA8B0                           925  .SELMEWT
+003FA8B0  4EB9 003FB3EA            926      JSR     PLAYNEO
+003FA8B6  2079 003FA3F4            927      MOVE.L (PTRMEWT),A0
+003FA8BC  13FC 0001 003FB641       928      MOVE.B #1,(ACTMEWT)
+003FA8C4  4EB9 003FB03A            929      JSR DRAWPKM
+003FA8CA  4E41                     930      TRAP #1
+003FA8CC                           931  
+003FA8CC                           932  .CONTI
+003FA8CC                           933  
+003FA8CC  23C8 003FB64C            934      MOVE.L A0,(OFPKMRLS) ; GET FIRST POKEMON OF OPPONENT
+003FA8D2                           935            
+003FA8D2  4CDF 021F                936          MOVEM.L (A7)+,D0-D4/A1
+003FA8D6  4E75                     937      RTS
+003FA8D8                           938  ; ----------------------------------------------------------
+003FA8D8                           939  
+003FA8D8                           940  ; ----------------------------------------------------------
+003FA8D8                           941  BTLUPD
+003FA8D8                           942  ; CONTROLS AND MANAGES THE BATTLE OF POKEMONS    
+003FA8D8                           943  ; INPUT     : NONE
+003FA8D8                           944  ; OUTPUT    : NONE
+003FA8D8                           945  ; MODIFIES  : NONE
+003FA8D8                           946  ; ----------------------------------------------------------
+003FA8D8                           947      
+003FA8D8                           948  
+003FA8D8                           949      ; MUST CHECK TURN TO PLAY
+003FA8D8  3039 003FB65A            950      MOVE.W  (TURN),D0
+003FA8DE  0C79 0000 003FB65A       951      CMP.W #0,(TURN)
+003FA8E6  6700 0010                952      BEQ .PLYRTURN
+003FA8EA  0C79 0001 003FB65A       953      CMP.W #1,(TURN)
+003FA8F2  6700 0068                954      BEQ .CPUTURN
+003FA8F6  4E75                     955      RTS
+003FA8F8                           956  .PLYRTURN
+003FA8F8  4EB9 003FA906            957      JSR     .DOATTACK  
+003FA8FE  4EB9 003FABFE            958      JSR     PSUPD
+003FA904  4E75                     959      RTS
+003FA906                           960      ;COMPUTE DAMAGE DONE TO THE OPONENTE BY THE MOVEMENT SELECTED
+003FA906                           961  .DOATTACK
+003FA906                           962  
+003FA906  1039 003FB642            963      MOVE.B (SELLANZ),D0
+003FA90C  B03C 0001                964      CMP.B   #1,D0
+003FA910  6700 0798                965      BEQ     DOLANZALLAMAS
+003FA914  1039 003FB643            966      MOVE.B (SELPULS),D0
+003FA91A  B03C 0001                967      CMP.B   #1,D0
+003FA91E  6700 07B4                968      BEQ     DOPULSOUMBRIO
+003FA922  1039 003FB644            969      MOVE.B (SELHIDR),D0
+003FA928  B03C 0001                970      CMP.B   #1,D0
+003FA92C  6700 07DE                971      BEQ     DOHIDROPULSO
+003FA930  1039 003FB645            972      MOVE.B (SELTRIT),D0
+003FA936  B03C 0001                973      CMP.B   #1,D0
+003FA93A  6700 07FA                974      BEQ     DOTRITURAR
+003FA93E  1039 003FB646            975      MOVE.B (SELRAYO),D0
+003FA944  B03C 0001                976      CMP.B   #1,D0
+003FA948  6700 0824                977      BEQ     DORAYOSOL
+003FA94C  1039 003FB647            978      MOVE.B (SELZUMB),D0
+003FA952  B03C 0001                979      CMP.B   #1,D0
+003FA956  6700 0840                980      BEQ     DOZUMBIDO 
+003FA95A  4E75                     981      RTS
+003FA95C                           982  ; ----------------------------------------------------------
+003FA95C                           983  
+003FA95C                           984  .CPUTURN
+003FA95C                           985  
+003FA95C  4EB9 003FA96A            986      JSR .ODOATCK
+003FA962  4EB9 003FAC34            987      JSR OPSUPD
+003FA968  4E75                     988      RTS
+003FA96A                           989  
+003FA96A                           990  ;CHOSES A RNDM MVMNT AND COMPUTES DAMAGE DONE TO THE OPONENTE BY THE MOVEMENT SELECTED
+003FA96A                           991  .ODOATCK
+003FA96A  1039 003FB63D            992      MOVE.B  (ACTMOLT),D0
+003FA970  B03C 0001                993      CMP.B   #1,D0
+003FA974  6700 003A                994      BEQ     MOLTRESATCK
+003FA978  1039 003FB63E            995      MOVE.B  (ACTART),D0
+003FA97E  B03C 0001                996      CMP.B   #1,D0
+003FA982  6700 004E                997      BEQ     ARTICUNOATCK
+003FA986  1039 003FB63F            998      MOVE.B  (ACTZAPD),D0
+003FA98C  B03C 0001                999      CMP.B   #1,D0
+003FA990  6700 0062               1000      BEQ     ZAPDOSATCK
+003FA994  1039 003FB640           1001      MOVE.B  (ACTMEW),D0
+003FA99A  B03C 0001               1002      CMP.B   #1,D0
+003FA99E  6700 0076               1003      BEQ     MEWATCK
+003FA9A2  1039 003FB641           1004      MOVE.B  (ACTMEWT),D0
+003FA9A8  B03C 0001               1005      CMP.B   #1,D0
+003FA9AC  6700 008A               1006      BEQ     MEWTATCK
+003FA9B0                          1007      
+003FA9B0                          1008  MOLTRESATCK
+003FA9B0                          1009  
+003FA9B0  33FC 0000 003FB62C      1010      MOVE.W #0,(LOW)
+003FA9B8  33FC 0002 003FB62E      1011      MOVE.W #2,(TOP)
+003FA9C0  4EB9 003FA4CA           1012      JSR    GENRAN
+003FA9C6  B23C 0000               1013      CMP.B  #0,D1
+003FA9CA  6700 0070               1014      BEQ    SOFOCO
+003FA9CE  6000 00F8               1015      BRA    HIPERRAYO
+003FA9D2                          1016  
+003FA9D2                          1017  ARTICUNOATCK
+003FA9D2                          1018  
+003FA9D2  33FC 0000 003FB62C      1019      MOVE.W #0,(LOW)
+003FA9DA  33FC 0002 003FB62E      1020      MOVE.W #2,(TOP)
+003FA9E2  4EB9 003FA4CA           1021      JSR    GENRAN
+003FA9E8  B23C 0000               1022      CMP.B  #0,D1
+003FA9EC  6700 0070               1023      BEQ    HIDROBOMBA
+003FA9F0  6000 00D6               1024      BRA    HIPERRAYO
+003FA9F4                          1025      
+003FA9F4                          1026  ZAPDOSATCK
+003FA9F4                          1027  
+003FA9F4  33FC 0000 003FB62C      1028      MOVE.W #0,(LOW)
+003FA9FC  33FC 0002 003FB62E      1029      MOVE.W #2,(TOP)
+003FAA04  4EB9 003FA4CA           1030      JSR    GENRAN
+003FAA0A  B23C 0000               1031      CMP.B  #0,D1
+003FAA0E  6700 0070               1032      BEQ    TRUENO
+003FAA12  6000 00B4               1033      BRA    HIPERRAYO  
+003FAA16                          1034    
+003FAA16                          1035  MEWATCK
+003FAA16                          1036  
+003FAA16  33FC 0000 003FB62C      1037      MOVE.W #0,(LOW)
+003FAA1E  33FC 0002 003FB62E      1038      MOVE.W #2,(TOP)
+003FAA26  4EB9 003FA4CA           1039      JSR    GENRAN
+003FAA2C  B23C 0000               1040      CMP.B  #0,D1
+003FAA30  6700 0070               1041      BEQ    TRANSFORMACION
+003FAA34  6000 0092               1042      BRA    HIPERRAYO
+003FAA38                          1043      
+003FAA38                          1044  MEWTATCK
+003FAA38                          1045  
+003FAA38  6000 0068               1046      BRA TRANSFORMACION
+003FAA3C                          1047      
+003FAA3C                          1048  SOFOCO
+003FAA3C                          1049  
+003FAA3C  4EB9 003FB1DE           1050      JSR    GETDMG
+003FAA42  3039 003FB65E           1051      MOVE.W (STRDDMG),D0
+003FAA48  1239 003FB63C           1052      MOVE.B (ACTVEN),D1
+003FAA4E  B23C 0001               1053      CMP.B   #1,D1
+003FAA52  6700 007C               1054      BEQ     OSUPEREF
+003FAA56  33C0 003FB65E           1055      MOVE    D0,(STRDDMG)
+003FAA5C                          1056      
+003FAA5C  4E75                    1057      RTS
+003FAA5E                          1058      
+003FAA5E                          1059  HIDROBOMBA
+003FAA5E                          1060  
+003FAA5E  4EB9 003FB1DE           1061      JSR    GETDMG
+003FAA64  3039 003FB65E           1062      MOVE.W (STRDDMG),D0
+003FAA6A  1239 003FB63A           1063      MOVE.B (ACTCHAR),D1
+003FAA70  B23C 0001               1064      CMP.B   #1,D1
+003FAA74  6700 005A               1065      BEQ     OSUPEREF
+003FAA78  33C0 003FB65E           1066      MOVE    D0,(STRDDMG)
+003FAA7E                          1067      
+003FAA7E  4E75                    1068      RTS
+003FAA80                          1069  
+003FAA80                          1070  TRUENO
+003FAA80                          1071  
+003FAA80  4EB9 003FB1DE           1072      JSR    GETDMG
+003FAA86  3039 003FB65E           1073      MOVE.W (STRDDMG),D0
+003FAA8C  1239 003FB63B           1074      MOVE.B (ACTBLAST),D1
+003FAA92  B23C 0001               1075      CMP.B   #1,D1
+003FAA96  6700 0038               1076      BEQ     OSUPEREF
+003FAA9A  33C0 003FB65E           1077      MOVE    D0,(STRDDMG)
+003FAAA0                          1078      
+003FAAA0  4E75                    1079      RTS
+003FAAA2                          1080      
+003FAAA2                          1081  TRANSFORMACION
+003FAAA2                          1082  
+003FAAA2  33FC 0000 003FB62C      1083      MOVE.W #0,(LOW)
+003FAAAA  33FC 0003 003FB62E      1084      MOVE.W #3,(TOP)
+003FAAB2  4EB9 003FA4CA           1085      JSR    GENRAN
+003FAAB8  B23C 0000               1086      CMP.B  #0,D1
+003FAABC  6700 FF7E               1087      BEQ    SOFOCO
+003FAAC0  B23C 0001               1088      CMP.B  #1,D1
+003FAAC4  6798                    1089      BEQ    HIDROBOMBA
+003FAAC6  60B8                    1090      BRA    TRUENO
+003FAAC8                          1091  
+003FAAC8                          1092  HIPERRAYO
+003FAAC8                          1093  
+003FAAC8  4EB9 003FB1DE           1094      JSR     GETDMG
+003FAACE  4E75                    1095      RTS
+003FAAD0                          1096  
+003FAAD0                          1097  ;DOUBLES DMG IF THE MVMT IS SUPEREF.
+003FAAD0                          1098  OSUPEREF
+003FAAD0                          1099  
+003FAAD0  3F00                    1100      MOVE.W D0,-(A7)
+003FAAD2                          1101  
+003FAAD2  D000                    1102      ADD.B  D0,D0
+003FAAD4  33C0 003FB65E           1103      MOVE.W  D0,(STRDDMG)
+003FAADA                          1104      
+003FAADA  301F                    1105      MOVE.W (A7)+,D0
+003FAADC                          1106      
+003FAADC  4E75                    1107      RTS
+003FAADE                          1108      
+003FAADE                          1109  ; ----------------------------------------------------------
+003FAADE                          1110  PSDRAW
+003FAADE                          1111  ; DRAWS AND UPDATES THE LIFE BAR FOR EACH POKEMON AFTER A TURN 
+003FAADE                          1112  ; INPUT     : NONE
+003FAADE                          1113  ; OUTPUT    : NONE
+003FAADE                          1114  ; MODIFIES  : NONE
+003FAADE                          1115  ; ----------------------------------------------------------
+003FAADE                          1116      
+003FAADE  48E7 F840               1117      MOVEM.L D0-D4/A1,-(A7)
+003FAAE2                          1118  .OPPONENT
+003FAAE2                          1119  
+003FAAE2                          1120      ; DRAW OPPONENT PS BAR
+003FAAE2                          1121      ; DEFINE PEN COLOR
+003FAAE2  103C 0050               1122      MOVE.B #80,D0
+003FAAE6  223C 000E0E0E           1123      MOVE.L #PENCOL,D1
+003FAAEC  4E4F                    1124      TRAP #15
+003FAAEE                          1125      
+003FAAEE                          1126      ; DEFINE FILL COLOR
+003FAAEE  103C 0051               1127      MOVE.B #81,D0
+003FAAF2  223C 005D5D5D           1128      MOVE.L #FILLCOL,D1
+003FAAF8  4E4F                    1129      TRAP #15
+003FAAFA                          1130      
+003FAAFA                          1131      
+003FAAFA                          1132      
+003FAAFA                          1133      ; DRAW OPPONENT ACTUAL LIFE BAR
+003FAAFA  103C 0057               1134      MOVE.B #87,D0
+003FAAFE  323C 001C               1135      MOVE.W #OBARCORX,D1
+003FAB02  343C 002B               1136      MOVE.W #OBARCORY,D2
+003FAB06  3639 003FB648           1137      MOVE.W (OACTLIFE),D3
+003FAB0C  383C 0055               1138      MOVE.W #BARHEIGH,D4
+003FAB10  4E4F                    1139      TRAP #15
+003FAB12                          1140      ; DEFINE TOTAL FILL COLOR
+003FAB12  103C 0051               1141      MOVE.B #81,D0
+003FAB16  223C 00FFFFFF           1142      MOVE.L #$00FFFFFF,D1
+003FAB1C  4E4F                    1143      TRAP #15
+003FAB1E                          1144      ; DRAW OPPONENT TOTAL LIFE BAR
+003FAB1E  103C 0057               1145      MOVE.B #87,D0
+003FAB22  3239 003FB648           1146      MOVE.W (OACTLIFE),D1
+003FAB28  343C 002B               1147      MOVE.W #OBARCORY,D2
+003FAB2C  363C 0118               1148      MOVE.W #OMAXPS,D3
+003FAB30  383C 0055               1149      MOVE.W #BARHEIGH,D4
+003FAB34  4E4F                    1150      TRAP #15
+003FAB36                          1151      ; SHOW OPPONENT LIFE BAR
+003FAB36  4E41                    1152      TRAP #1  
+003FAB38                          1153  
+003FAB38                          1154      ; SET BACKGROUND COLOR
+003FAB38  103C 0051               1155      MOVE.B #81,D0
+003FAB3C  223C 00FFFFFF           1156      MOVE.L #$00FFFFFF,D1
+003FAB42  4E4F                    1157      TRAP #15
+003FAB44                          1158      
+003FAB44                          1159      ; SET TEXT FORMAT COLOR
+003FAB44  103C 0015               1160      MOVE.B #21,D0
+003FAB48  7200                    1161      MOVE.L #$00000000,D1
+003FAB4A  243C 060E0000           1162      MOVE.L #$060E0000,D2
+003FAB50  4E4F                    1163      TRAP #15
+003FAB52                          1164      
+003FAB52                          1165      ; DRAW OPPONENT PS
+003FAB52  43F9 003FA404           1166      LEA.L PSMSG,A1
+003FAB58  103C 005F               1167      MOVE.B #95,D0
+003FAB5C  323C 011E               1168      MOVE.W #OPSCORX,D1
+003FAB60  343C 0035               1169      MOVE.W #OPSCORY,D2
+003FAB64  4E4F                    1170      TRAP #15
+003FAB66  4E41                    1171      TRAP #1
+003FAB68                          1172         
+003FAB68                          1173  ; ----------------------------------------------------------   
+003FAB68                          1174  .PLAYER
+003FAB68                          1175   
+003FAB68                          1176      ; DRAW PLAYER PS BAR
+003FAB68                          1177      ; DEFINE PEN COLOR
+003FAB68  103C 0050               1178      MOVE.B #80,D0
+003FAB6C  223C 000E0E0E           1179      MOVE.L #PENCOL,D1
+003FAB72  4E4F                    1180      TRAP #15
+003FAB74                          1181      
+003FAB74                          1182      ; DEFINE FILL COLOR
+003FAB74  103C 0051               1183      MOVE.B #81,D0
+003FAB78  223C 005D5D5D           1184      MOVE.L #FILLCOL,D1
+003FAB7E  4E4F                    1185      TRAP #15
+003FAB80                          1186      
+003FAB80                          1187      ; DRAW ACTUAL PLAYER LIFE BAR
+003FAB80  103C 0057               1188      MOVE.B #87,D0
+003FAB84  323C 015A               1189      MOVE.W #TBARCORX,D1  
+003FAB88  343C 012C               1190      MOVE.W #TBARCORY,D2 
+003FAB8C  3639 003FB64A           1191      MOVE.W  (TACTLIFE),D3 
+003FAB92  0643 0140               1192      ADD.W  #TBARCORY+20,D3
+003FAB96  383C 0155               1193      MOVE.W #256+BARHEIGH,D4  
+003FAB9A  4E4F                    1194      TRAP #15
+003FAB9C  4E41                    1195      TRAP #1
+003FAB9E                          1196       ; DEFINE TOTAL FILL COLOR
+003FAB9E  103C 0051               1197      MOVE.B #81,D0
+003FABA2  223C 00FFFFFF           1198      MOVE.L #$00FFFFFF,D1
+003FABA8  4E4F                    1199      TRAP #15
+003FABAA                          1200      ; DRAW PLAYER TOTAL LIFE BAR
+003FABAA  103C 0057               1201      MOVE.B #87,D0
+003FABAE  3239 003FB64A           1202      MOVE.W (TACTLIFE),D1
+003FABB4  0641 0140               1203      ADD.W  #TBARCORY+20,D1
+003FABB8  343C 012C               1204      MOVE.W #TBARCORY,D2
+003FABBC  363C 0258               1205      MOVE.W #TMAXPS,D3
+003FABC0  383C 0155               1206      MOVE.W #256+BARHEIGH,D4  
+003FABC4  4E4F                    1207      TRAP #15
+003FABC6                          1208      ; SHOW PLAYER LIFE BAR
+003FABC6  4E41                    1209      TRAP #1  
+003FABC8                          1210  
+003FABC8                          1211      ; SET BACKGROUND COLOR
+003FABC8  103C 0051               1212      MOVE.B #81,D0
+003FABCC  223C 00FFFFFF           1213      MOVE.L #$00FFFFFF,D1
+003FABD2  4E4F                    1214      TRAP #15
+003FABD4                          1215      
+003FABD4                          1216      ; SET TEXT FORMAT COLOR
+003FABD4  103C 0015               1217      MOVE.B #21,D0
+003FABD8  7200                    1218      MOVE.L #$00000000,D1
+003FABDA  243C 060E0000           1219      MOVE.L #$060E0000,D2
+003FABE0  4E4F                    1220      TRAP #15
+003FABE2                          1221      
+003FABE2                          1222      ; DRAW PLAYER PS
+003FABE2  43F9 003FA404           1223      LEA.L PSMSG,A1
+003FABE8  103C 005F               1224      MOVE.B #95,D0
+003FABEC  323C 0138               1225      MOVE.W #TPSCORX,D1
+003FABF0  343C 0134               1226      MOVE.W #TPSCORY,D2
+003FABF4  4E4F                    1227      TRAP #15
+003FABF6  4E41                    1228      TRAP #1
+003FABF8                          1229      
+003FABF8  4CDF 021F               1230      MOVEM.L (A7)+,D0-D4/A1
+003FABFC                          1231      
+003FABFC  4E75                    1232      RTS
+003FABFE                          1233  ; ----------------------------------------------------------
+003FABFE                          1234  PSUPD
+003FABFE                          1235  ; AFTER TEAM TURN LIFE BAR MANAGEMENT
+003FABFE                          1236  ; INPUT     : NONE
+003FABFE                          1237  ; OUTPUT    : NONE
+003FABFE                          1238  ; MODIFIES  : OACTLIFE
+003FABFE                          1239  ; ----------------------------------------------------------
+003FABFE                          1240  
+003FABFE  1039 003FB65E           1241      MOVE.B  (STRDDMG),D0
+003FAC04  4880                    1242      EXT.W   D0
+003FAC06  3239 003FB648           1243      MOVE.W  (OACTLIFE),D1
+003FAC0C  9240                    1244      SUB.W   D0,D1
+003FAC0E  33C1 003FB648           1245      MOVE.W  D1,(OACTLIFE)
+003FAC14  B27C 001C               1246      CMP.W   #OBARCORX,D1
+003FAC18  6C00 0066               1247      BGE     SETNXTTURN  
+003FAC1C                          1248      ;OPONENT PKM FAINTED
+003FAC1C  33FC 0000 003FB654      1249      MOVE.W  #0,(FAINTPKM)
+003FAC24  33FC 0000 003FA400      1250      MOVE.W  #0,(DEFEATPKM)
+003FAC2C  4EB9 003FACAE           1251      JSR     DFTPKM  
+003FAC32  4E75                    1252      RTS
+003FAC34                          1253      
+003FAC34                          1254  ; ----------------------------------------------------------
+003FAC34                          1255  OPSUPD
+003FAC34                          1256  ; AFET OPONENT TURN LIFE BAR MANAGEMENT   
+003FAC34                          1257  ; INPUT     : NONE
+003FAC34                          1258  ; OUTPUT    : NONE
+003FAC34                          1259  ; MODIFIES  : TACTLIFE
+003FAC34                          1260  ; ----------------------------------------------------------
+003FAC34  303C 0000               1261      MOVE.W  #0,D0
+003FAC38                          1262  .MINILOOP
+003FAC38  5280                    1263      ADD.L   #1,D0
+003FAC3A  B0BC 0007A120           1264      CMP.L   #500000,D0
+003FAC40  66F6                    1265      BNE     .MINILOOP  
+003FAC42  1039 003FB65E           1266      MOVE.B  (STRDDMG),D0
+003FAC48  4880                    1267      EXT.W   D0
+003FAC4A  5B40                    1268      SUB.W   #5,D0
+003FAC4C  3239 003FB64A           1269      MOVE.W  (TACTLIFE),D1
+003FAC52  9240                    1270      SUB.W   D0,D1
+003FAC54  33C1 003FB64A           1271      MOVE.W  D1,(TACTLIFE)
+003FAC5A  B27C 001E               1272      CMP.W   #30,D1
+003FAC5E  6C00 0020               1273      BGE     SETNXTTURN  
+003FAC62  33FC 015A 003FB64A      1274      MOVE.W  #TBARCORX,(TACTLIFE)
+003FAC6A                          1275      ; TEAM POKEMON FAINTED
+003FAC6A  33FC 0001 003FB654      1276      MOVE.W  #1,(FAINTPKM)
+003FAC72  13FC 0001 003FA400      1277      MOVE.B  #1,(DEFEATPKM)
+003FAC7A  4EB9 003FACAE           1278      JSR     DFTPKM  
+003FAC80                          1279  
+003FAC80                          1280  
+003FAC80                          1281  ; ----------------------------------------------------------
+003FAC80                          1282  SETNXTTURN
+003FAC80                          1283  ; UPDATES WHO WILL HAVE THE TURN  
+003FAC80                          1284  ; INPUT     : NONE
+003FAC80                          1285  ; OUTPUT    : NONE
+003FAC80                          1286  ; MODIFIES  : TURN
+003FAC80                          1287  ; ----------------------------------------------------------
+003FAC80  3039 003FB65C           1288      MOVE.W      (NXTTURN),D0
+003FAC86  B07C 0000               1289      CMP.W       #0,D0
+003FAC8A  6700 000C               1290      BEQ         SETOTURN
+003FAC8E                          1291  SETTTURN
+003FAC8E  33FC 0002 003FB65C      1292      MOVE.W      #2,(NXTTURN)
+003FAC96  4E75                    1293      RTS
+003FAC98                          1294  SETOTURN
+003FAC98  33FC 0001 003FB65C      1295      MOVE.W  #1,(NXTTURN)
+003FACA0  4E75                    1296      RTS
+003FACA2                          1297  ; ----------------------------------------------------------
+003FACA2                          1298  SETTURN
+003FACA2                          1299  ; UPDATES WHO HAS THE TURN  
+003FACA2                          1300  ; INPUT     : NONE
+003FACA2                          1301  ; OUTPUT    : NONE
+003FACA2                          1302  ; MODIFIES  : TURN
+003FACA2                          1303  ; ----------------------------------------------------------
+003FACA2  33F9 003FB65C 003FB65A  1304      MOVE.W (NXTTURN),(TURN)
+003FACAC  4E75                    1305      RTS
+003FACAE                          1306  ; ----------------------------------------------------------
+003FACAE                          1307  DFTPKM
+003FACAE                          1308  ; UPDATED THE NEXT POKEMON TO BE SHOWN
+003FACAE                          1309  ; INPUT     : NONE
+003FACAE                          1310  ; OUTPUT    : NONE
+003FACAE                          1311  ; MODIFIES  : NONE
+003FACAE                          1312  ; ----------------------------------------------------------
+003FACAE                          1313  
+003FACAE  48E7 80F0               1314      MOVEM.L D0/A0-A3,-(A7)
+003FACB2                          1315      ;CHECK FAINTED POKEMON
+003FACB2  0C79 0000 003FB654      1316      CMP.W #0,(FAINTPKM)
+003FACBA  6700 009A               1317      BEQ UPDOPKM
+003FACBE                          1318  CHNGPKM   
+003FACBE  33FC 0001 003FB634      1319      MOVE.W #1,(DRAWYO)
+003FACC6  2079 001A2150           1320      MOVE.L (PTBUFFER),A0
+003FACCC  2039 003FB650           1321      MOVE.L (TFPKMRLS),D0
+003FACD2  2240                    1322      MOVEA.L D0,A1
+003FACD4  B3C8                    1323      CMPA.L A0,A1
+003FACD6  6600 0012               1324      BNE .SHOWTPKM
+003FACDA  06B9 00027000 001A2150  1325      ADD.L #PTRADCNT,(PTBUFFER)
+003FACE4  2079 001A2150           1326      MOVE.L  (PTBUFFER),A0
+003FACEA                          1327  .SHOWTPKM
+003FACEA  4EB9 003FB03A           1328      JSR DRAWPKM
+003FACF0                          1329      ; POINT AT NEW SPRITE
+003FACF0  06B9 00027000 001A2150  1330      ADD.L #PTRADCNT,(PTBUFFER)
+003FACFA                          1331      ; RESET FAINTED POKEMON
+003FACFA  33FC FFFF 003FB654      1332      MOVE.W #-1,(FAINTPKM)
+003FAD02  5379 003FB658           1333      SUBQ.W #1,(LENPKMT)
+003FAD08  33FC 0118 003FB64A      1334      MOVE.W  #280,(TACTLIFE)
+003FAD10  6000 00A4               1335      BRA RETURNDFT
+003FAD14                          1336  GETDRWPKM
+003FAD14  2679 003FA3E0           1337      MOVEA.L  (PTRBLAS),A3
+003FAD1A  B7C8                    1338      CMPA.L   A0,A3
+003FAD1C  6700 001A               1339      BEQ     DRWBLAST
+003FAD20  2679 003FA3E4           1340      MOVEA.L  (PTRCHAR),A3
+003FAD26  B7C8                    1341      CMPA.L   A0,A3
+003FAD28  6700 0018               1342      BEQ     DRWCHAR
+003FAD2C  2679 003FA3E8           1343      MOVEA.L  (PTRVEN),A3
+003FAD32  B7C8                    1344      CMPA.L   A0,A3
+003FAD34  6700 0016               1345      BEQ     DRWVEN
+003FAD38                          1346      
+003FAD38                          1347  DRWBLAST
+003FAD38  13FC 0001 003FB63B      1348      MOVE.B  #1,(ACTBLAST)
+003FAD40  4E75                    1349      RTS
+003FAD42                          1350  DRWCHAR
+003FAD42  13FC 0001 003FB63A      1351      MOVE.B  #1,(ACTCHAR)
+003FAD4A  4E75                    1352      RTS
+003FAD4C                          1353  DRWVEN
+003FAD4C  13FC 0001 003FB63C      1354      MOVE.B  #1,(ACTVEN)
+003FAD54  4E75                    1355      RTS
+003FAD56                          1356        
+003FAD56                          1357  UPDOPKM
+003FAD56                          1358      ; UPDATE OPPONENT POKEMON
+003FAD56  33FC 0000 003FB634      1359      MOVE.W #0,(DRAWYO)
+003FAD5E  2079 0012D14C           1360      MOVE.L (PBUFFERL),A0
+003FAD64  2039 003FB64C           1361      MOVE.L (OFPKMRLS),D0
+003FAD6A  2240                    1362      MOVEA.L D0,A1
+003FAD6C  B3C8                    1363      CMPA.L A0,A1
+003FAD6E  6600 0012               1364      BNE .SHOWOPKM
+003FAD72  06B9 00027000 0012D14C  1365      ADD.L #PTRADCNT,(PBUFFERL)
+003FAD7C  2079 0012D14C           1366      MOVE.L  (PBUFFERL),A0
+003FAD82                          1367  .SHOWOPKM
+003FAD82                          1368  
+003FAD82  4EB9 003FB03A           1369      JSR DRAWPKM
+003FAD88  4EB9 003FADBE           1370      JSR GETDRWNOPKM
+003FAD8E  13FC 0002 003FB65C      1371      MOVE.B  #2,(NXTTURN)
+003FAD96                          1372      ; POINT AT NEW SPRITE
+003FAD96  06B9 00027000 0012D14C  1373      ADD.L #PTRADCNT,(PBUFFERL)
+003FADA0                          1374      ; RESET FAINTED POKEMON
+003FADA0  33FC FFFF 003FB654      1375      MOVE.W #-1,(FAINTPKM)
+003FADA8  5379 003FB656           1376      SUBQ.W #1,(LENPKMO)
+003FADAE  33FC 0118 003FB648      1377      MOVE.W  #280,(OACTLIFE)
+003FADB6                          1378  RETURNDFT
+003FADB6  4E41                    1379      TRAP    #1
+003FADB8  4CDF 0F01               1380      MOVEM.L (A7)+,D0/A0-A3
+003FADBC  4E75                    1381      RTS
+003FADBE                          1382  
+003FADBE                          1383  GETDRWNOPKM ;UPDATES THE OPONENT ACTPKM VAR
+003FADBE  13FC 0000 003FB63E      1384      MOVE.B  #0,(ACTART)
+003FADC6  13FC 0000 003FB640      1385      MOVE.B  #0,(ACTMEW)
+003FADCE  13FC 0000 003FB641      1386      MOVE.B  #0,(ACTMEWT)
+003FADD6  13FC 0000 003FB63D      1387      MOVE.B  #0,(ACTMOLT)
+003FADDE  13FC 0000 003FB63F      1388      MOVE.B  #0,(ACTZAPD)
+003FADE6  2279 003FA3EC           1389      MOVE.L  (PTRART),A1
+003FADEC  B3C8                    1390      CMP.L      A0,A1
+003FADEE  6700 0032               1391      BEQ      ISACTART
+003FADF2  2279 003FA3F0           1392      MOVE.L  (PTRMEW),A1
+003FADF8  B3C8                    1393      CMP.L      A0,A1
+003FADFA  6700 0042               1394      BEQ      ISACTMEW
+003FADFE  2279 003FA3F4           1395      MOVE.L  (PTRMEWT),A1
+003FAE04  B3C8                    1396      CMP.L      A0,A1
+003FAE06  6700 0052               1397      BEQ      ISACTMEWT
+003FAE0A  2279 003FA3F8           1398      MOVE.L  (PTRMOLT),A1
+003FAE10  B3C8                    1399      CMP.L      A0,A1
+003FAE12  6700 007E               1400      BEQ      ISACTMOLT
+003FAE16  2279 003FA3FC           1401      MOVE.L  (PTRZAP),A1
+003FAE1C  B3C8                    1402      CMP.L      A0,A1
+003FAE1E  6700 0056               1403      BEQ      ISACTZAP
+003FAE22                          1404  
+003FAE22                          1405  ISACTART
+003FAE22  4EB9 003FB372           1406      JSR     STOP
+003FAE28  4EB9 003FB3AA           1407      JSR     PLAYBLUE
+003FAE2E  13FC 0001 003FB63E      1408      MOVE.B  #1,(ACTART)
+003FAE36  267C 00000000           1409      MOVE.L  #0,A3
+003FAE3C  4E75                    1410      RTS
+003FAE3E                          1411  ISACTMEW
+003FAE3E  4EB9 003FB372           1412      JSR     STOP
+003FAE44  4EB9 003FB3CA           1413      JSR     PLAYN
+003FAE4A  13FC 0001 003FB640      1414      MOVE.B  #1,(ACTMEW)
+003FAE52  267C 00000000           1415      MOVE.L  #0,A3
+003FAE58  4E75                    1416      RTS
+003FAE5A                          1417  ISACTMEWT
+003FAE5A  4EB9 003FB372           1418      JSR     STOP
+003FAE60  4EB9 003FB3EA           1419      JSR     PLAYNEO
+003FAE66  13FC 0001 003FB641      1420      MOVE.B  #1,(ACTMEWT)
+003FAE6E  267C 00000000           1421      MOVE.L  #0,A3
+003FAE74  4E75                    1422      RTS
+003FAE76                          1423  ISACTZAP
+003FAE76  4EB9 003FB372           1424      JSR     STOP
+003FAE7C  4EB9 003FB42A           1425      JSR     PLAYELIT
+003FAE82  13FC 0001 003FB63F      1426      MOVE.B  #1,(ACTZAPD)
+003FAE8A  267C 00000000           1427      MOVE.L  #0,A3
+003FAE90  4E75                    1428      RTS
+003FAE92                          1429  ISACTMOLT
+003FAE92  4EB9 003FB372           1430      JSR STOP
+003FAE98  4EB9 003FB40A           1431      JSR PLAYRESH
+003FAE9E                          1432      
+003FAE9E  13FC 0001 003FB63D      1433      MOVE.B  #1,(ACTMOLT)
+003FAEA6  267C 00000000           1434      MOVE.L  #0,A3
+003FAEAC  4E75                    1435      RTS
+003FAEAE                          1436  
+003FAEAE                          1437  ; ----------------------------------------------------------
+003FAEAE                          1438  TEAMINIT
+003FAEAE                          1439  ; INITIALIZE THE TEAMS FOR THE USER AND THE OPPONENT
+003FAEAE                          1440  ; INPUT     : NONE
+003FAEAE                          1441  ; OUTPUT    : POINTERS TO POKEMON SPRITES
+003FAEAE                          1442  ; MODIFIES  : NONE
+003FAEAE                          1443  ; ----------------------------------------------------------
+003FAEAE                          1444      
+003FAEAE  48E7 60C0               1445      MOVEM.L D1-D2/A0-A1,-(A7)
+003FAEB2                          1446      
+003FAEB2                          1447  ; --- OPPONENT TEAM GENERATION -----------------------------
+003FAEB2                          1448      
+003FAEB2  41F8 114C               1449      LEA.L BUFFERL,A0
+003FAEB6  23C8 0012D14C           1450      MOVE.L A0,(PBUFFERL)   
+003FAEBC  343C 0005               1451      MOVE.W #5,D2 
+003FAEC0                          1452      ; GENERATE RANDOM TEAM FOR PLAYER
+003FAEC0  33FC 0001 003FB62C      1453      MOVE.W #1,(LOW)
+003FAEC8  33FC 0006 003FB62E      1454      MOVE.W #6,(TOP)
+003FAED0                          1455      
+003FAED0                          1456      ; CHECK FOR RANDOM VALUE
+003FAED0                          1457  .OLOOP
+003FAED0                          1458      
+003FAED0  B47C 0000               1459      CMP.W #0,D2
+003FAED4  6700 00C6               1460      BEQ .END
+003FAED8  B47C 0001               1461      CMP.W #1,D2
+003FAEDC  6700 001E               1462      BEQ .GETART
+003FAEE0  B47C 0002               1463      CMP.W #2,D2
+003FAEE4  6700 0036               1464      BEQ .GETMEW
+003FAEE8  B47C 0003               1465      CMP.W #3,D2
+003FAEEC  6700 004E               1466      BEQ .GETMEWT
+003FAEF0  B47C 0004               1467      CMP.W #4,D2
+003FAEF4  6700 0066               1468      BEQ .GETMOLT
+003FAEF8  6600 0082               1469      BNE .GETZAP
+003FAEFC                          1470      
+003FAEFC                          1471      
+003FAEFC                          1472  .GETART
+003FAEFC                          1473      
+003FAEFC                          1474      ; CHECK IF NOT REPEATED POKEMON
+003FAEFC                          1475      ;TST.L (PTRART) ; VER SI GENRAN NO PETA
+003FAEFC                          1476      ;BNE .NOTNEW
+003FAEFC                          1477      ; PREPARE TO READ TO BUFFERL
+003FAEFC  227C 003FA318           1478      MOVEA.L #BPTRART,A1
+003FAF02  4EB9 003FA550           1479      JSR READ
+003FAF08  23C8 003FA3EC           1480      MOVE.L A0,(PTRART)   ;STORE ARTICUNO POINTER
+003FAF0E  D1FC 00027000           1481      ADDA.L #PTRADCNT,A0 ;POINT AT NEXT MEMORY POSITION
+003FAF14  51CA FFBA               1482      DBRA D2,.OLOOP
+003FAF18  6000 0082               1483      BRA .END
+003FAF1C                          1484      
+003FAF1C                          1485  .GETMEW
+003FAF1C                          1486      
+003FAF1C                          1487      ;TST.L (PTRMEW)
+003FAF1C                          1488      ;BNE .NOTNEW
+003FAF1C                          1489      ; PREPARE TO READ TO BUFFERL
+003FAF1C  227C 003FA342           1490      MOVEA.L #BPTRMEW,A1
+003FAF22  4EB9 003FA550           1491      JSR READ
+003FAF28  23C8 003FA3F0           1492      MOVE.L A0,(PTRMEW)   ;STORE MEW POINTER
+003FAF2E  D1FC 00027000           1493      ADDA.L #PTRADCNT,A0 ;POINT AT NEXT MEMORY POSITION
+003FAF34  51CA FF9A               1494      DBRA D2,.OLOOP
+003FAF38  6000 0062               1495      BRA .END
+003FAF3C                          1496      
+003FAF3C                          1497  .GETMEWT
+003FAF3C                          1498  
+003FAF3C                          1499      ;TST.L (PTRMEWT)
+003FAF3C                          1500      ;BNE .NOTNEW
+003FAF3C                          1501      ; PREPARE TO READ TO BUFFERL
+003FAF3C  227C 003FA367           1502      MOVEA.L #BPTRMEWT,A1
+003FAF42  4EB9 003FA550           1503      JSR READ
+003FAF48  23C8 003FA3F4           1504      MOVE.L A0,(PTRMEWT)   ;STORE MEWTWO POINTER
+003FAF4E  D1FC 00027000           1505      ADDA.L #PTRADCNT,A0 ;POINT AT NEXT MEMORY POSITION
+003FAF54  51CA FF7A               1506      DBRA D2,.OLOOP
+003FAF58  6000 0042               1507      BRA .END 
+003FAF5C                          1508  
+003FAF5C                          1509  .GETMOLT
+003FAF5C                          1510  
+003FAF5C                          1511      ;TST.L (PTRMOLT)
+003FAF5C                          1512      ;BNE .NOTNEW
+003FAF5C                          1513      ; PREPARE TO READ TO BUFFERL
+003FAF5C  227C 003FA38F           1514      MOVEA.L #BPTRMOLT,A1
+003FAF62  4EB9 003FA550           1515      JSR READ
+003FAF68  23C8 003FA3F8           1516      MOVE.L A0,(PTRMOLT)  ;STORE MOLTRES POINTER
+003FAF6E  D1FC 00027000           1517      ADDA.L #PTRADCNT,A0 ;POINT AT NEXT MEMORY POSITION
+003FAF74  51CA FF5A               1518      DBRA D2,.OLOOP
+003FAF78  6000 0022               1519      BRA .END 
+003FAF7C                          1520  
+003FAF7C                          1521  .GETZAP
+003FAF7C                          1522  
+003FAF7C                          1523      ;TST.L (PTRZAP)
+003FAF7C                          1524      ;BNE .NOTNEW
+003FAF7C                          1525      ; PREPARE TO READ TO BUFFERL
+003FAF7C  227C 003FA3B8           1526      MOVEA.L #BPTRZAP,A1
+003FAF82  4EB9 003FA550           1527      JSR READ
+003FAF88  23C8 003FA3FC           1528      MOVE.L A0,(PTRZAP)  ;STORE ZAPDOS POINTER
+003FAF8E  D1FC 00027000           1529      ADDA.L #PTRADCNT,A0 ;POINT AT NEXT MEMORY POSITION
+003FAF94  51CA FF3A               1530      DBRA D2,.OLOOP
+003FAF98  6000 0002               1531      BRA .END 
+003FAF9C                          1532      
+003FAF9C                          1533  .NOTNEW
+003FAF9C                          1534  
+003FAF9C                          1535      ;BRA .TLOOP ; PARTE DE GENRAN
+003FAF9C                          1536      
+003FAF9C                          1537      
+003FAF9C                          1538  ; ----------------------------------------------------------
+003FAF9C                          1539  .END
+003FAF9C                          1540  ; --- PLAYER TEAM GENERATION -------------------------------    
+003FAF9C                          1541      
+003FAF9C  41F9 0012D150           1542      LEA.L TBUFFER,A0
+003FAFA2  23C8 001A2150           1543      MOVE.L A0,(PTBUFFER)
+003FAFA8  343C 0003               1544      MOVE.W #3,D2
+003FAFAC                          1545      ; GENERATE RANDOM TEAM FOR PLAYER
+003FAFAC  33FC 0001 003FB62C      1546      MOVE.W #1,(LOW)
+003FAFB4  33FC 0006 003FB62E      1547      MOVE.W #6,(TOP)
+003FAFBC                          1548      
+003FAFBC                          1549  .TLOOP
+003FAFBC                          1550  
+003FAFBC  B47C 0000               1551      CMP.W #0,D2
+003FAFC0  6700 0072               1552      BEQ .ENDT
+003FAFC4  B47C 0001               1553      CMP.W #1,D2
+003FAFC8  6700 000E               1554      BEQ .GETBLAS
+003FAFCC  B47C 0002               1555      CMP.W #2,D2
+003FAFD0  6700 0024               1556      BEQ .GETCHAR
+003FAFD4  6600 003E               1557      BNE .GETVEN
+003FAFD8                          1558      
+003FAFD8                          1559  .GETBLAS
+003FAFD8                          1560      
+003FAFD8  227C 003FA29C           1561      MOVE.L #TPTRBLAS,A1
+003FAFDE  4EB9 003FA550           1562      JSR READ
+003FAFE4  23C8 003FA3E0           1563      MOVE.L A0,(PTRBLAS) ; STORE BLASTOISE POINTER
+003FAFEA  D1FC 00027000           1564      ADDA.L #PTRADCNT,A0 ; POINT AT NEXT FREE MEMORY POSITION
+003FAFF0  51CA FFCA               1565      DBRA D2,.TLOOP
+003FAFF4  60A6                    1566      BRA .END
+003FAFF6                          1567  
+003FAFF6                          1568  .GETCHAR
+003FAFF6                          1569  
+003FAFF6  227C 003FA2C6           1570      MOVE.L #TPTRCHAR,A1
+003FAFFC  4EB9 003FA550           1571      JSR READ
+003FB002  23C8 003FA3E4           1572      MOVE.L A0,(PTRCHAR) ; STORE CHARIZARD POINTER
+003FB008  D1FC 00027000           1573      ADDA.L #PTRADCNT,A0 ; POINT AT NEXT FREE MEMORY POSITION
+003FB00E  51CA FFAC               1574      DBRA D2,.TLOOP
+003FB012  6088                    1575      BRA .END
+003FB014                          1576  
+003FB014                          1577  
+003FB014                          1578  .GETVEN
+003FB014                          1579  
+003FB014  227C 003FA2F0           1580      MOVE.L #TPTRVEN,A1
+003FB01A  4EB9 003FA550           1581      JSR READ
+003FB020  23C8 003FA3E8           1582      MOVE.L A0,(PTRVEN)  ; STORE VENASUR POINTER
+003FB026  D1FC 00027000           1583      ADDA.L #PTRADCNT,A0 ; POINT AT NEXT FREE MEMORY POSITION
+003FB02C  51CA FF8E               1584      DBRA D2,.TLOOP
+003FB030  6000 FF6A               1585      BRA .END
+003FB034                          1586  
+003FB034                          1587         
+003FB034                          1588  ; ---------------------------------------------------------- 
+003FB034                          1589      
+003FB034                          1590  .ENDT
+003FB034                          1591       
+003FB034  4CDF 0306               1592      MOVEM.L (A7)+,D1-D2/A0-A1 ; CORREGIR (PUEDE)
+003FB038                          1593      
+003FB038                          1594      
+003FB038  4E75                    1595      RTS
+003FB03A                          1596  
+003FB03A                          1597  ; ----------------------------------------------------------
+003FB03A                          1598  
+003FB03A                          1599  ; ----------------------------------------------------------
+003FB03A                          1600  DRAWPKM
+003FB03A                          1601  ; DRAWS ANY POKEMON SPRITE
+003FB03A                          1602  ; INPUT     : POINTER TO SPRITE
+003FB03A                          1603  ;             DRAWING MODE (DRAWYO: 0 -> OPPONENT, 1 TEAM)
+003FB03A                          1604  ; OUTUT     : NONE
+003FB03A                          1605  ; MODIFIES  : NONE
+003FB03A                          1606  ; ----------------------------------------------------------
+003FB03A                          1607      
+003FB03A  48E7 F8C0               1608      MOVEM.L D0-D4/A0-A1,-(A7)
+003FB03E                          1609      ; CHECK FOR COORDINATE DRAWING
+003FB03E  0C79 0000 003FB634      1610      CMP.W #0,(DRAWYO)
+003FB046  6700 0006               1611      BEQ .DRAWOP
+003FB04A  6600 000E               1612      BNE .DRAWT
+003FB04E                          1613      
+003FB04E                          1614  .DRAWOP
+003FB04E                          1615      
+003FB04E  323C 0140               1616      MOVE.W #OPKMCORX,D1
+003FB052  343C 0000               1617      MOVE.W #OPKMCORY,D2
+003FB056  6000 000A               1618      BRA .DOIT
+003FB05A                          1619      
+003FB05A                          1620  .DRAWT
+003FB05A                          1621      
+003FB05A  323C 0030               1622      MOVE.W #TPKMCORX,D1
+003FB05E  343C 0122               1623      MOVE.W #TPKMCORY,D2
+003FB062                          1624      
+003FB062                          1625  .DOIT
+003FB062                          1626            
+003FB062                          1627      ; PREPARE THE FILE TO READ
+003FB062  4200                    1628      CLR.B D0
+003FB064  383C 00BD               1629      MOVE.W #STDHEIGH-1,D4   ; Y ITERATIONS
+003FB068                          1630      
+003FB068                          1631  .DRAWY
+003FB068                          1632  
+003FB068  363C 00D1               1633      MOVE.W #STDWIDTH-1,D3   ; X ITERATIONS
+003FB06C                          1634      
+003FB06C                          1635      .DRAWX:
+003FB06C                          1636          
+003FB06C  3F01                    1637          MOVE.W D1,-(A7)
+003FB06E  4281                    1638          CLR.L D1
+003FB070  2218                    1639          MOVE.L (A0)+,D1 ; LOAD 4 BYTES
+003FB072  103C 0050               1640          MOVE.B #80,D0
+003FB076  4E4F                    1641          TRAP #15
+003FB078  321F                    1642          MOVE.W (A7)+,D1
+003FB07A                          1643          
+003FB07A  103C 0052               1644          MOVE.B #82,D0
+003FB07E  4E4F                    1645          TRAP #15
+003FB080  5241                    1646          ADDQ.W #1,D1
+003FB082  51CB FFE8               1647          DBRA D3,.DRAWX
+003FB086                          1648      
+003FB086  0C79 0000 003FB634      1649      CMP.W #0,(DRAWYO)
+003FB08E  6700 000A               1650      BEQ .RSTPKMX
+003FB092  323C 0030               1651      MOVE.W #TPKMCORX,D1
+003FB096  6000 0006               1652      BRA .CONT
+003FB09A                          1653  .RSTPKMX
+003FB09A  323C 0140               1654      MOVE.W #OPKMCORX,D1
+003FB09E                          1655  .CONT
+003FB09E  5242                    1656      ADDQ.W #1,D2
+003FB0A0  51CC FFC6               1657      DBRA D4,.DRAWY  
+003FB0A4                          1658          
+003FB0A4  4CDF 031F               1659      MOVEM.L (A7)+,D0-D4/A0-A1
+003FB0A8  4E75                    1660      RTS
+003FB0AA                          1661  
+003FB0AA                          1662  
+003FB0AA                          1663  ; ----------------------------------------------------------
+003FB0AA                          1664      
+003FB0AA                          1665  
+003FB0AA                          1666  ;--- CHARIZARD MOVEMENTS
+003FB0AA                          1667  
+003FB0AA                          1668  DOLANZALLAMAS
+003FB0AA                          1669  
+003FB0AA  48A7 C000               1670      MOVEM.W D0-D1,-(A7)
+003FB0AE                          1671  
+003FB0AE  4EB9 003FB1DE           1672      JSR     GETDMG  
+003FB0B4  1039 003FB65E           1673      MOVE.B  (STRDDMG),D0
+003FB0BA  1239 003FB63E           1674      MOVE.B  (ACTART),D1
+003FB0C0  B23C 0001               1675      CMP.B   #1,D1
+003FB0C4  6700 010A               1676      BEQ     SUPEREF
+003FB0C8  13C0 003FB65E           1677      MOVE.B  D0,(STRDDMG)
+003FB0CE                          1678      
+003FB0CE  4C9F 0003               1679      MOVEM.W (A7)+,D0-D1
+003FB0D2                          1680      
+003FB0D2  4E75                    1681      RTS
+003FB0D4                          1682      
+003FB0D4                          1683  DOPULSOUMBRIO
+003FB0D4                          1684  
+003FB0D4  48A7 C000               1685      MOVEM.W D0-D1,-(A7)
+003FB0D8                          1686      
+003FB0D8  4EB9 003FB1DE           1687      JSR     GETDMG
+003FB0DE  1039 003FB65E           1688      MOVE.B  (STRDDMG),D0
+003FB0E4  1239 003FB640           1689      MOVE.B  (ACTMEW),D1
+003FB0EA  B23C 0001               1690      CMP.B   #1,D1
+003FB0EE  6700 00E0               1691      BEQ     SUPEREF
+003FB0F2  1239 003FB641           1692      MOVE.B  (ACTMEWT),D1
+003FB0F8  B23C 0001               1693      CMP.B   #1,D1
+003FB0FC  6700 00D2               1694      BEQ     SUPEREF
+003FB100  13C0 003FB65E           1695      MOVE.B  D0,(STRDDMG)
+003FB106                          1696      
+003FB106  4C9F 0003               1697      MOVEM.W (A7)+,D0-D1
+003FB10A                          1698      
+003FB10A  4E75                    1699      RTS
+003FB10C                          1700      
+003FB10C                          1701  ;--- BLASTOISE MOVEMENTS
+003FB10C                          1702  
+003FB10C                          1703  DOHIDROPULSO
+003FB10C                          1704  
+003FB10C  48A7 C000               1705      MOVEM.W D0-D1,-(A7)
+003FB110                          1706  
+003FB110  4EB9 003FB1DE           1707      JSR     GETDMG
+003FB116  1039 003FB65E           1708      MOVE.B  (STRDDMG),D0
+003FB11C  1239 003FB63D           1709      MOVE.B  (ACTMOLT),D1
+003FB122  B23C 0001               1710      CMP.B   #1,D1
+003FB126  6700 00A8               1711      BEQ     SUPEREF
+003FB12A  13C0 003FB65E           1712      MOVE.B  D0,(STRDDMG)
+003FB130                          1713      
+003FB130  4C9F 0003               1714      MOVEM.W (A7)+,D0-D1
+003FB134                          1715      
+003FB134  4E75                    1716      RTS
+003FB136                          1717      
+003FB136                          1718  DOTRITURAR
+003FB136                          1719  
+003FB136  48A7 C000               1720      MOVEM.W D0-D1,-(A7)
+003FB13A                          1721  
+003FB13A  4EB9 003FB1DE           1722      JSR     GETDMG
+003FB140  1039 003FB65E           1723      MOVE.B  (STRDDMG),D0
+003FB146  1239 003FB640           1724      MOVE.B  (ACTMEW),D1
+003FB14C  B23C 0001               1725      CMP.B   #1,D1
+003FB150  6700 007E               1726      BEQ     SUPEREF
+003FB154  1239 003FB641           1727      MOVE.B  (ACTMEWT),D1
+003FB15A  B23C 0001               1728      CMP.B   #1,D1
+003FB15E  6700 0070               1729      BEQ     SUPEREF
+003FB162  13C0 003FB65E           1730      MOVE.B  D0,(STRDDMG)
+003FB168                          1731      
+003FB168  4C9F 0003               1732      MOVEM.W (A7)+,D0-D1
+003FB16C                          1733      
+003FB16C  4E75                    1734      RTS
+003FB16E                          1735      
+003FB16E                          1736  ;--- VENASUR MOVEMENTS
+003FB16E                          1737  
+003FB16E                          1738  DORAYOSOL
+003FB16E                          1739  
+003FB16E  48A7 C000               1740      MOVEM.W D0-D1,-(A7)
+003FB172                          1741  
+003FB172  4EB9 003FB1DE           1742      JSR     GETDMG
+003FB178  1039 003FB65E           1743      MOVE.B  (STRDDMG),D0
+003FB17E  1239 003FB63F           1744      MOVE.B  (ACTZAPD),D1
+003FB184  B23C 0001               1745      CMP.B   #1,D1
+003FB188  6700 0046               1746      BEQ     SUPEREF
+003FB18C  13C0 003FB65E           1747      MOVE.B  D0,(STRDDMG)
+003FB192                          1748      
+003FB192  4C9F 0003               1749      MOVEM.W (A7)+,D0-D1
+003FB196                          1750      
+003FB196  4E75                    1751      RTS
+003FB198                          1752      
+003FB198                          1753  DOZUMBIDO
+003FB198                          1754  
+003FB198  48A7 C000               1755      MOVEM.W D0-D1,-(A7)
+003FB19C                          1756  
+003FB19C  4EB9 003FB1DE           1757      JSR     GETDMG
+003FB1A2  1039 003FB65E           1758      MOVE.B  (STRDDMG),D0
+003FB1A8  1239 003FB640           1759      MOVE.B  (ACTMEW),D1
+003FB1AE  B23C 0001               1760      CMP.B   #1,D1
+003FB1B2  6700 001C               1761      BEQ     SUPEREF
+003FB1B6  1239 003FB641           1762      MOVE.B  (ACTMEWT),D1
+003FB1BC  B23C 0001               1763      CMP.B   #1,D1
+003FB1C0  6700 000E               1764      BEQ     SUPEREF
+003FB1C4  13C0 003FB65E           1765      MOVE.B  D0,(STRDDMG)
+003FB1CA                          1766      
+003FB1CA  4C9F 0003               1767      MOVEM.W (A7)+,D0-D1
+003FB1CE                          1768      
+003FB1CE  4E75                    1769      RTS
+003FB1D0                          1770      
+003FB1D0                          1771  SUPEREF
+003FB1D0                          1772  
+003FB1D0                          1773  
+003FB1D0                          1774  
+003FB1D0  D000                    1775      ADD.B  D0,D0
+003FB1D2  13C0 003FB65E           1776      MOVE.B  D0,(STRDDMG)
+003FB1D8                          1777      
+003FB1D8  4C9F 0003               1778      MOVEM.W (A7)+,D0-D1
+003FB1DC                          1779      
+003FB1DC  4E75                    1780      RTS
+003FB1DE                          1781      
+003FB1DE                          1782  ; ----------------------------------------------------------
+003FB1DE                          1783  GETDMG
+003FB1DE                          1784  ; COMPUTES RANDOM DAMAGE FROM ATTACKS
+003FB1DE                          1785  ; INPUT     : NONE
+003FB1DE                          1786  ; OUTUT     : DAMAGE IN STRDDMG MEMORY LOCATION
+003FB1DE                          1787  ; MODIFIES  : NONE
+003FB1DE                          1788  ; ----------------------------------------------------------
+003FB1DE                          1789      
+003FB1DE  33FC 0000 003FB62C      1790      MOVE.W #0,(LOW)
+003FB1E6  33FC 0002 003FB62E      1791      MOVE.W #2,(TOP)
+003FB1EE  4EB9 003FA4CA           1792      JSR GENRAN
+003FB1F4  43F9 003FA408           1793      LEA.L DMGPTR,A1
+003FB1FA                          1794      
+003FB1FA                          1795  .LOOP
+003FB1FA  2459                    1796      MOVEA.L (A1)+,A2
+003FB1FC  51C9 FFFC               1797      DBRA D1,.LOOP
+003FB200  13D2 003FB65E           1798      MOVE.B (A2),(STRDDMG) 
+003FB206                          1799      
+003FB206  4E75                    1800      RTS
+003FB208                          1801  ; ----------------------------------------------------------
+003FB208                          1802  
+003FB208                          1803  -------------------- end include --------------------
+003FB208                          1804      INCLUDE "SYSMENU.X68"
+003FB208                          1805  ;-----------------------------------------------------------
+003FB208                          1806  SELMENU
+003FB208                          1807  ;-----------------------------------------------------------
+003FB208  0C39 0001 003FB63C      1808          CMP.B #1,(ACTVEN)
+003FB210  6700 001C               1809          BEQ     .VEN
+003FB214  0C39 0001 003FB63A      1810          CMP.B  #1,(ACTCHAR)
+003FB21C  6700 001E               1811          BEQ     .CHAR
+003FB220  0C39 0001 003FB63B      1812          CMP.B  #1,(ACTBLAST)
+003FB228  6700 0020               1813          BEQ     .BLAS
+003FB22C  4E75                    1814          RTS
+003FB22E                          1815  .VEN
+003FB22E  41F9 003FA296           1816          LEA.L MENUVENV,A0
+003FB234  43F9 003FA27E           1817          LEA.L MENUVEN,A1
+003FB23A  4E75                    1818          RTS
+003FB23C                          1819  .CHAR   
+003FB23C  41F9 003FA290           1820          LEA.L MENUCHARV,A0
+003FB242  43F9 003FA272           1821          LEA.L MENUCHAR,A1
+003FB248  4E75                    1822          RTS
+003FB24A                          1823  .BLAS
+003FB24A  41F9 003FA28A           1824          LEA.L MENUBLASV,A0
+003FB250  43F9 003FA266           1825          LEA.L MENUBLAS,A1
+003FB256  4E75                    1826          RTS
+003FB258                          1827  
+003FB258                          1828  
+003FB258                          1829  
+003FB258                          1830  ;-----------------------------------------------------------
+003FB258                          1831  CHGMENU
+003FB258                          1832  ;-----------------------------------------------------------
+003FB258                          1833  ; CHANGE MOVEMENTS OF POKEMON WHEN 1 OF YOUR POKEMON DIE
+003FB258                          1834  ; INPUT     : NONE
+003FB258                          1835  ; OUTPUT    : NONE
+003FB258                          1836  ; MODIFIES  : NONE
+003FB258                          1837  ; ----------------------------------------------------------
+003FB258                          1838          
+003FB258  303C 0001               1839          MOVE.W  #1,D0
+003FB25C  0C39 0001 003FA400      1840          CMP.B   #1,(DEFEATPKM)
+003FB264  6700 0004               1841          BEQ     .ACT
+003FB268  4E75                    1842          RTS
+003FB26A                          1843  .ACT
+003FB26A  4EB9 003FB2FE           1844          JSR UPDACTIVE
+003FB270                          1845  .LOOP
+003FB270  0C39 0001 003FB63C      1846          CMP.B #1,(ACTVEN)
+003FB278  6700 0030               1847          BEQ     .VEN
+003FB27C  0C39 0001 003FB63A      1848          CMP.B  #1,(ACTCHAR)
+003FB284  6700 0040               1849          BEQ     .CHAR
+003FB288  0C39 0001 003FB63B      1850          CMP.B  #1,(ACTBLAST)
+003FB290  6700 0050               1851          BEQ     .BLAS
+003FB294  13FC 0000 003FA400      1852          MOVE.B  #0,(DEFEATPKM)
+003FB29C  13FC 0001 003FB63B      1853          MOVE.B  #1,(ACTBLAST)
+003FB2A4  51C8 FFCA               1854          DBRA    D0,.LOOP
+003FB2A8  4E75                    1855          RTS
+003FB2AA                          1856          
+003FB2AA                          1857  .VEN
+003FB2AA  41F9 003FA296           1858          LEA.L MENUVENV,A0
+003FB2B0  43F9 003FA27E           1859          LEA.L MENUVEN,A1
+003FB2B6  4EB9 003FA5D4           1860          JSR MENUINIT
+003FB2BC  13FC 0000 003FA400      1861          MOVE.B  #0,(DEFEATPKM)
+003FB2C4  4E75                    1862          RTS
+003FB2C6                          1863  .CHAR   
+003FB2C6  41F9 003FA290           1864          LEA.L MENUCHARV,A0
+003FB2CC  43F9 003FA272           1865          LEA.L MENUCHAR,A1
+003FB2D2  4EB9 003FA5D4           1866          JSR MENUINIT
+003FB2D8  13FC 0000 003FA400      1867          MOVE.B  #0,(DEFEATPKM)
+003FB2E0  4E75                    1868          RTS
+003FB2E2                          1869  .BLAS
+003FB2E2  41F9 003FA28A           1870          LEA.L MENUBLASV,A0
+003FB2E8  43F9 003FA266           1871          LEA.L MENUBLAS,A1
+003FB2EE  4EB9 003FA5D4           1872          JSR MENUINIT
+003FB2F4  13FC 0000 003FA400      1873          MOVE.B  #0,(DEFEATPKM)
+003FB2FC  4E75                    1874          RTS
+003FB2FE                          1875  
+003FB2FE                          1876  UPDACTIVE
+003FB2FE  0C39 0001 003FB63C      1877          CMP.B #1,(ACTVEN)
+003FB306  6700 001C               1878          BEQ .UPDVEN
+003FB30A  0C39 0001 003FB63A      1879          CMP.B  #1,(ACTCHAR)
+003FB312  6700 001E               1880          BEQ .UPDCHAR
+003FB316  0C39 0001 003FB63B      1881          CMP.B  #1,(ACTBLAST)
+003FB31E  6700 0020               1882          BEQ     .UPDBLAS
+003FB322  4E75                    1883          RTS
+003FB324                          1884  .UPDVEN
+003FB324  5239 003FB63C           1885          ADDQ.B  #1,(ACTVEN)
+003FB32A  5239 003FB63A           1886          ADDQ.B  #1,(ACTCHAR)
+003FB330  4E75                    1887          RTS
+003FB332                          1888  .UPDCHAR
+003FB332  5239 003FB63A           1889          ADDQ.B  #1,(ACTCHAR)
+003FB338  5239 003FB63C           1890          ADDQ.B  #1,(ACTVEN)
+003FB33E  4E75                    1891          RTS
+003FB340                          1892  .UPDBLAS
+003FB340  5239 003FB63B           1893          ADDQ.B  #1,(ACTBLAST)
+003FB346  5239 003FB63C           1894          ADDQ.B  #1,(ACTVEN)
+003FB34C  4E75                    1895          RTS
+003FB34E                          1896  
+003FB34E                          1897  -------------------- end include --------------------
+003FB34E                          1898      INCLUDE "THEMES.X68"
+003FB34E                          1899  
+003FB34E                          1900  ; ----------------------------------------------------------
+003FB34E                          1901  INITTHM
+003FB34E                          1902  ; INITZIALICE ALL THE THEMES TO BE USED. (FAILED ON DIRECTX)
+003FB34E                          1903  ; ONLY ONE SOUND MAY BE PLAYED AT ONCE
+003FB34E                          1904  ; INPUT     : NONE
+003FB34E                          1905  ; OUTPUT    : NONE
+003FB34E                          1906  ; MODIFIES  : NONE
+003FB34E                          1907  ; ----------------------------------------------------------
+003FB34E                          1908      
+003FB34E  48A7 E000               1909      MOVEM.W D0-D2,-(A7)
+003FB352                          1910      
+003FB352  4201                    1911      CLR.B D1
+003FB354  343C 0006               1912      MOVE.W #6,D2
+003FB358  41F9 003FA412           1913      LEA.L PTRTHEME,A0
+003FB35E  103C 0047               1914      MOVE.B #71,D0
+003FB362                          1915      
+003FB362                          1916  .GETTHM
+003FB362                          1917      
+003FB362  2258                    1918      MOVEA.L (A0)+,A1
+003FB364  4E4F                    1919      TRAP #15
+003FB366  5201                    1920      ADDQ.B #1,D1
+003FB368  51CA FFF8               1921      DBRA D2,.GETTHM
+003FB36C                          1922      
+003FB36C  4C9F 0007               1923      MOVEM.W (A7)+,D0-D2
+003FB370  4E75                    1924      RTS
+003FB372                          1925  
+003FB372                          1926  ; ----------------------------------------------------------
+003FB372                          1927  
+003FB372                          1928  
+003FB372                          1929  ; ----------------------------------------------------------
+003FB372                          1930  STOP
+003FB372                          1931  ; STOPS THE CURRENT PLAYING THEME
+003FB372                          1932  ; INPUT     : NONE
+003FB372                          1933  ; OUTPUT    : NONE
+003FB372                          1934  ; MODIFIES  : NONE
+003FB372                          1935  ; ----------------------------------------------------------
+003FB372                          1936      
+003FB372  48E7 E000               1937      MOVEM.L D0-D2,-(A7)
+003FB376                          1938      
+003FB376  103C 004C               1939      MOVE.B #76,D0
+003FB37A  1239 003FB660           1940      MOVE.B (REFSOUND),D1
+003FB380  7402                    1941      MOVE.L #2,D2
+003FB382  4E4F                    1942      TRAP #15
+003FB384                          1943      
+003FB384  4CDF 0007               1944      MOVEM.L (A7)+,D0-D2
+003FB388  4E75                    1945      RTS
+003FB38A                          1946  
+003FB38A                          1947  ; ----------------------------------------------------------
+003FB38A                          1948  
+003FB38A                          1949  
+003FB38A                          1950  
+003FB38A                          1951  ; ----------------------------------------------------------
+003FB38A                          1952  MAINTHM
+003FB38A                          1953  ; PLAYS THE MAIN MUSIC PANEL
+003FB38A                          1954  ; INPUT     : NONE
+003FB38A                          1955  ; OUTPUT    : NONE
+003FB38A                          1956  ; MODIFIES  : NONE
+003FB38A                          1957  ; ----------------------------------------------------------
+003FB38A                          1958      
+003FB38A  48E7 E000               1959      MOVEM.L D0-D2,-(A7)
+003FB38E                          1960      
+003FB38E  13FC 0000 003FB660      1961      MOVE.B #0,(REFSOUND)    ; STORE REFERENCE
+003FB396  103C 004C               1962      MOVE.B #76,D0
+003FB39A  1239 003FB660           1963      MOVE.B (REFSOUND),D1    
+003FB3A0  7401                    1964      MOVE.L #1,D2    ; PLAY MAIN TITLE SOUND LOOP
+003FB3A2  4E4F                    1965      TRAP #15
+003FB3A4                          1966      
+003FB3A4  4CDF 0007               1967      MOVEM.L (A7)+,D0-D2 
+003FB3A8  4E75                    1968      RTS
+003FB3AA                          1969  
+003FB3AA                          1970  ; ----------------------------------------------------------
+003FB3AA                          1971  
+003FB3AA                          1972  
+003FB3AA                          1973  ; ----------------------------------------------------------
+003FB3AA                          1974  PLAYBLUE
+003FB3AA                          1975  ; PLAYS THE CHAMPION BLUE MUSIC 
+003FB3AA                          1976  ; INPUT     : D0 = 0 TO STOP, DIFFERNT THAN 0  TO PLAY SOUND
+003FB3AA                          1977  ; OUTPUT    : NONE
+003FB3AA                          1978  ; MODIFIES  : NONE
+003FB3AA                          1979  ; ----------------------------------------------------------
+003FB3AA                          1980      
+003FB3AA  48E7 E000               1981      MOVEM.L D0-D2,-(A7)
+003FB3AE                          1982      
+003FB3AE  13FC 0001 003FB660      1983      MOVE.B #1,(REFSOUND)    ; STORE REFERENCE
+003FB3B6  103C 004C               1984      MOVE.B #76,D0
+003FB3BA  1239 003FB660           1985      MOVE.B (REFSOUND),D1    
+003FB3C0  7401                    1986      MOVE.L #1,D2    ; PLAY BLUE THEME LOOP
+003FB3C2  4E4F                    1987      TRAP #15
+003FB3C4                          1988      
+003FB3C4  4CDF 0007               1989      MOVEM.L (A7)+,D0-D2
+003FB3C8  4E75                    1990      RTS
+003FB3CA                          1991      
+003FB3CA                          1992  ; ----------------------------------------------------------
+003FB3CA                          1993  
+003FB3CA                          1994  
+003FB3CA                          1995  
+003FB3CA                          1996  ; ----------------------------------------------------------
+003FB3CA                          1997  PLAYN
+003FB3CA                          1998  ; PLAYS N FINAL BATTLE
+003FB3CA                          1999  ; INPUT     : NONE
+003FB3CA                          2000  ; OUTPUT    : NONE
+003FB3CA                          2001  ; MODIFIES  : NONE
+003FB3CA                          2002  ; ----------------------------------------------------------
+003FB3CA                          2003  
+003FB3CA  48E7 E000               2004      MOVEM.L D0-D2,-(A7)
+003FB3CE                          2005      
+003FB3CE  13FC 0002 003FB660      2006      MOVE.B #2,(REFSOUND)    ; STORE REFERENCE
+003FB3D6  103C 004C               2007      MOVE.B #76,D0
+003FB3DA  1239 003FB660           2008      MOVE.B (REFSOUND),D1    
+003FB3E0  7401                    2009      MOVE.L #1,D2            ; PLAY N THEME LOOP
+003FB3E2  4E4F                    2010      TRAP #15
+003FB3E4                          2011      
+003FB3E4  4CDF 0007               2012      MOVEM.L (A7)+,D0-D2
+003FB3E8  4E75                    2013      RTS
+003FB3EA                          2014  
+003FB3EA                          2015  ; ----------------------------------------------------------
+003FB3EA                          2016  
+003FB3EA                          2017  
+003FB3EA                          2018  
+003FB3EA                          2019  ; ----------------------------------------------------------
+003FB3EA                          2020  PLAYNEO
+003FB3EA                          2021  ; PLAYS NEO TEAM PLASMA THEME
+003FB3EA                          2022  ; INPUT     : NONE
+003FB3EA                          2023  ; OUTPUT    : NONE
+003FB3EA                          2024  ; MODIFIES  : NONE
+003FB3EA                          2025  ; ----------------------------------------------------------
+003FB3EA                          2026  
+003FB3EA  48E7 E000               2027      MOVEM.L D0-D2,-(A7)
+003FB3EE                          2028      
+003FB3EE  13FC 0004 003FB660      2029      MOVE.B #4,(REFSOUND)    ; STORE REFERENCE
+003FB3F6  103C 004C               2030      MOVE.B #76,D0
+003FB3FA  1239 003FB660           2031      MOVE.B (REFSOUND),D1    
+003FB400  7401                    2032      MOVE.L #1,D2    ; PLAY NEO THEME LOOP
+003FB402  4E4F                    2033      TRAP #15
+003FB404                          2034      
+003FB404  4CDF 0007               2035      MOVEM.L (A7)+,D0-D2
+003FB408  4E75                    2036      RTS
+003FB40A                          2037  
+003FB40A                          2038  ; ----------------------------------------------------------
+003FB40A                          2039  
+003FB40A                          2040  ; ----------------------------------------------------------
+003FB40A                          2041  PLAYRESH
+003FB40A                          2042  ; PLAYS THE RESHIRAM THEME
+003FB40A                          2043  ; INPUT     : NONE
+003FB40A                          2044  ; OUTPUT    : NONE
+003FB40A                          2045  ; MODIFIES  : NONE
+003FB40A                          2046  ; ----------------------------------------------------------
+003FB40A                          2047  
+003FB40A  48E7 E000               2048      MOVEM.L D0-D2,-(A7)
+003FB40E                          2049      
+003FB40E  13FC 0005 003FB660      2050      MOVE.B #5,(REFSOUND)    ; STORE REFERENCE
+003FB416  103C 004C               2051      MOVE.B #76,D0
+003FB41A  1239 003FB660           2052      MOVE.B (REFSOUND),D1    
+003FB420  7401                    2053      MOVE.L #1,D2    ; PLAY RESHIRAM THEME LOOP
+003FB422  4E4F                    2054      TRAP #15
+003FB424                          2055      
+003FB424  4CDF 0007               2056      MOVEM.L (A7)+,D0-D2
+003FB428  4E75                    2057      RTS
+003FB42A                          2058  
+003FB42A                          2059  ; ----------------------------------------------------------
+003FB42A                          2060  
+003FB42A                          2061  ; ----------------------------------------------------------
+003FB42A                          2062  PLAYELIT
+003FB42A                          2063  ; PLAYS THE ELITE FOUR THEME
+003FB42A                          2064  ; INPUT     : NONE
+003FB42A                          2065  ; OUTPUT    : NONE
+003FB42A                          2066  ; MODIFIES  : NONE
+003FB42A                          2067  ; ----------------------------------------------------------
+003FB42A                          2068  
+003FB42A  48E7 E000               2069      MOVEM.L D0-D2,-(A7)
+003FB42E                          2070      
+003FB42E  13FC 0003 003FB660      2071      MOVE.B #3,(REFSOUND)    ; STORE REFERENCE
+003FB436  103C 004C               2072      MOVE.B #76,D0
+003FB43A  1239 003FB660           2073      MOVE.B (REFSOUND),D1    
+003FB440  7401                    2074      MOVE.L #1,D2    ; PLAY ELITE FOUR THEME LOOP
+003FB442  4E4F                    2075      TRAP #15
+003FB444                          2076      
+003FB444  4CDF 0007               2077      MOVEM.L (A7)+,D0-D2
+003FB448  4E75                    2078      RTS
+003FB44A                          2079  
+003FB44A                          2080  ; ----------------------------------------------------------
+003FB44A                          2081  
+003FB44A                          2082  ; ----------------------------------------------------------
+003FB44A                          2083  PLAYDMG
+003FB44A                          2084  ; PLAYS THE MAIN MUSIC PANEL
+003FB44A                          2085  ; INPUT     : D0 = 0 TO STOP, DIFFERNT THAN 0  TO PLAY SOUND
+003FB44A                          2086  ; OUTPUT    : NONE
+003FB44A                          2087  ; MODIFIES  : NONE
+003FB44A                          2088  ; ----------------------------------------------------------
+003FB44A                          2089  
+003FB44A  48E7 E000               2090      MOVEM.L D0-D2,-(A7)
+003FB44E                          2091      
+003FB44E  13FC 0006 003FB660      2092      MOVE.B #6,(REFSOUND)    ; STORE REFERENCE
+003FB456  103C 004C               2093      MOVE.B #76,D0
+003FB45A  1239 003FB660           2094      MOVE.B (REFSOUND),D1    
+003FB460  7401                    2095      MOVE.L #1,D2    ; PLAY BLUE THEME LOOP
+003FB462  4E4F                    2096      TRAP #15
+003FB464                          2097      
+003FB464  4CDF 0007               2098      MOVEM.L (A7)+,D0-D2
+003FB468  4E75                    2099      RTS
+003FB46A                          2100  
+003FB46A                          2101  ; ----------------------------------------------------------
+003FB46A                          2102  
+003FB46A                          2103  ; ----------------------------------------------------------
+003FB46A                          2104  WINTHEME
+003FB46A                          2105  ; PLAYS THE MAIN MUSIC PANEL
+003FB46A                          2106  ; INPUT     : NONE
+003FB46A                          2107  ; OUTPUT    : NONE
+003FB46A                          2108  ; MODIFIES  : NONE
+003FB46A                          2109  ; ----------------------------------------------------------
+003FB46A                          2110  
+003FB46A  48E7 E000               2111      MOVEM.L D0-D2,-(A7)
+003FB46E                          2112  
+003FB46E  13FC 0006 003FB660      2113      MOVE.B #6,(REFSOUND)    ; STORE REFERENCE
+003FB476  103C 004C               2114      MOVE.B #76,D0
+003FB47A  1239 003FB660           2115      MOVE.B (REFSOUND),D1
+003FB480  7401                    2116      MOVE.L #1,D2    ; PLAY MAIN TITLE SOUND LOOP
+003FB482  4E4F                    2117      TRAP #15
+003FB484                          2118  
+003FB484  4CDF 0007               2119      MOVEM.L (A7)+,D0-D2 
+003FB488  4E75                    2120      RTS
+003FB48A                          2121  
+003FB48A                          2122  ; ----------------------------------------------------------
+003FB48A                          2123  
+003FB48A                          2124  
+003FB48A                          2125  
+003FB48A                          2126  -------------------- end include --------------------
+003FB48A                          2127      INCLUDE "SYSEND.X68"
+003FB48A                          2128  ; -----------------------------------------------------------
+003FB48A                          2129  
+003FB48A                          2130  ; -----------------------------------------------------------
+003FB48A                          2131  CHKACTLEN
+003FB48A                          2132  ; SHOWS THE MESSAGE SAYING THAT THE GAME IS OVER
+003FB48A                          2133  ; INPUT     : NONE
+003FB48A                          2134  ; OUTPUT    : NONE
+003FB48A                          2135  ; MODIFIES  : NONE
+003FB48A                          2136  ; -----------------------------------------------------------
+003FB48A  2F00                    2137      MOVE.L  D0,-(A7)
+003FB48C  3039 003FB656           2138      MOVE.W  (LENPKMO),D0
+003FB492  B07C 0000               2139      CMP.W   #0,D0
+003FB496  6700 0014               2140      BEQ     .UWIN
+003FB49A  3039 003FB658           2141      MOVE.W  (LENPKMT),D0
+003FB4A0  B07C 0000               2142      CMP.W   #0,D0
+003FB4A4  6700 0034               2143      BEQ     .ULOSE
+003FB4A8  2EC0                    2144      MOVE.L  D0,(A7)+
+003FB4AA  4E75                    2145      RTS
+003FB4AC                          2146  
+003FB4AC                          2147  .UWIN
+003FB4AC  4EB9 003FA5A0           2148      JSR STRTGAME
+003FB4B2  4EB9 003FB372           2149      JSR STOP
+003FB4B8  4E41                    2150      TRAP    #1
+003FB4BA  13FC 0001 003FB632      2151      MOVE.B  #1,(DOREAD)
+003FB4C2  207C 001A2154           2152      MOVE.L #WINBUFF,A0
+003FB4C8  227C 0000111A           2153      MOVE.L #FILEPATHWIN,A1
+003FB4CE  4EB9 003FA50A           2154      JSR READFILE
+003FB4D4  4E41                    2155      TRAP    #1
+003FB4D6  6000 014E               2156      BRA     WINGAME
+003FB4DA                          2157      
+003FB4DA                          2158      
+003FB4DA                          2159  .ULOSE
+003FB4DA  4EB9 003FA5A0           2160      JSR STRTGAME
+003FB4E0  4E41                    2161      TRAP    #1
+003FB4E2  13FC 0001 003FB632      2162      MOVE.B  #1,(DOREAD)
+003FB4EA  207C 002CE154           2163      MOVE.L #LOSEBUFF,A0
+003FB4F0  227C 00001134           2164      MOVE.L #FILEPATHLOSE,A1
+003FB4F6  4EB9 003FA50A           2165      JSR READFILE
+003FB4FC  4E41                    2166      TRAP  #1
+003FB4FE  6000 00B8               2167      BRA     LOSEGAME
+003FB502                          2168      
+003FB502                          2169  
+003FB502                          2170  
+003FB502                          2171  
+003FB502                          2172  
+003FB502                          2173  
+003FB502                          2174  -------------------- end include --------------------
+003FB502                          2175  
+003FB502                          2176  
+003FB502                          2177  ;-----------------------------------------------------------
+003FB502                          2178      
+003FB502                          2179  START:       
+003FB502                          2180  
+003FB502                          2181  ; --- INITIALIZATION ---------------------------------------
+003FB502                          2182      
+003FB502  007C 0700               2183      ORI.W #$0700,SR ; DISABLE INT
+003FB506                          2184  
+003FB506  4EB8 1000               2185      JSR SYSINIT
+003FB50A                          2186  FIRST
+003FB50A  4EB9 003FB34E           2187      JSR INITTHM
+003FB510  4EB9 003FA57E           2188      JSR LOADGAME
+003FB516  4E41                    2189      TRAP    #1
+003FB518  13FC 0001 003FB632      2190      MOVE.B  #1,(DOREAD)
+003FB520  207C 0000114C           2191      MOVE.L #BUFFERL,A0
+003FB526  227C 00001104           2192      MOVE.L #FILEPATH,A1
+003FB52C  4EB9 003FA50A           2193      JSR READFILE
+003FB532  4E41                    2194      TRAP    #1
+003FB534  4EB9 003FB372           2195      JSR STOP
+003FB53A  4EB9 003FA5A0           2196      JSR STRTGAME
+003FB540  4E41                    2197      TRAP    #1
+003FB542  13FC 0000 003FB668      2198      MOVE.B  #0,(SCRCLEAR)
+003FB54A  4EB9 003FA5A0           2199      JSR STRTGAME
+003FB550  4EB9 003FAEAE           2200      JSR TEAMINIT
+003FB556  4EB9 003FA770           2201      JSR BTLINIT
+003FB55C  4EB9 003FAADE           2202      JSR PSDRAW
+003FB562  4EB9 003FB208           2203      JSR SELMENU
+003FB568  4EB9 003FA5D4           2204      JSR MENUINIT
+003FB56E                          2205  .LOOP
+003FB56E                          2206  ; --- UPDATE -----------------------------------------------
+003FB56E                          2207      
+003FB56E                          2208  
+003FB56E                          2209  ; READ INPUT DEVICES
+003FB56E                          2210  
+003FB56E  4E40                    2211      TRAP #0
+003FB570                          2212      
+003FB570                          2213      
+003FB570                          2214   
+003FB570                          2215  
+003FB570                          2216  ; UPDATE GAME LOGIC
+003FB570                          2217      
+003FB570                          2218      ; VERIFY IF THE GAME IS OVER
+003FB570                          2219      ;------
+003FB570  4EB9 003FB48A           2220      JSR CHKACTLEN
+003FB576                          2221      ; CHECK FOR MENU UPDATES
+003FB576  4EB9 003FB208           2222          JSR     SELMENU
+003FB57C  4EB9 003FB258           2223          JSR     CHGMENU
+003FB582  4EB9 003FA5DC           2224          JSR     MENUPD
+003FB588                          2225      ;UPD BATTLE LOGIC
+003FB588  4EB9 003FACA2           2226          JSR     SETTURN
+003FB58E  4EB9 003FA8D8           2227          JSR     BTLUPD 
+003FB594  4EB9 003FAADE           2228          JSR     PSDRAW
+003FB59A                          2229  
+003FB59A                          2230  ; --- SYNC -------------------------------------------------
+003FB59A                          2231  
+003FB59A                          2232  .WINT   
+003FB59A  4A39 003FB664           2233      TST.B (SCRINTCT)
+003FB5A0  67F8                    2234      BEQ .WINT
+003FB5A2  4239 003FB664           2235      CLR.B (SCRINTCT)
+003FB5A8                          2236      
+003FB5A8                          2237  
+003FB5A8                          2238  ; --- PLOT -------------------------------------------------
+003FB5A8                          2239      
+003FB5A8  4EB9 003FB208           2240      JSR SELMENU
+003FB5AE  4EB9 003FA71A           2241      JSR MENUPLOT
+003FB5B4                          2242  ; --- END --------------------------------------------------
+003FB5B4                          2243  .FINISH
+003FB5B4                          2244  
+003FB5B4  4E41                    2245      TRAP #1
+003FB5B6                          2246      
+003FB5B6  60B6                    2247      BRA .LOOP
+003FB5B8                          2248  
+003FB5B8                          2249  
+003FB5B8                          2250  LOSEGAME
+003FB5B8  4EB9 003FB372           2251       JSR     STOP
+003FB5BE  4EB9 003FB38A           2252       JSR     MAINTHM
+003FB5C4                          2253  .MINILOOP
+003FB5C4  4E40                    2254       TRAP    #0
+003FB5C6  0839 0003 003FB663      2255       BTST.B  #KBDPOSSELECT,(KBDEDGE)
+003FB5CE  6700 0006               2256       BEQ     .ESPACE
+003FB5D2  6000 FF36               2257       BRA     FIRST
+003FB5D6                          2258  .ESPACE
+003FB5D6  0839 0000 003FB663      2259       BTST.B  #KBDPOSPAUSE,(KBDEDGE)
+003FB5DE  67E4                    2260       BEQ     .MINILOOP
+003FB5E0  6000 0044               2261       BRA     WINGAME
+003FB5E4                          2262       ;RESET STATUS VARS
+003FB5E4  33FC 0118 003FB648      2263       MOVE.W  #280,(OACTLIFE)
+003FB5EC  33FC 0118 003FB64A      2264       MOVE.W  #280,(TACTLIFE)
+003FB5F4  33FC 0002 003FB65A      2265       MOVE.W  #2,(TURN)
+003FB5FC  33FC 0002 003FB65C      2266       MOVE.W  #2,(NXTTURN)
+003FB604  33FC 0005 003FB656      2267       MOVE.W  #5,(LENPKMO)
+003FB60C  33FC 0003 003FB658      2268       MOVE.W  #3,(LENPKMT)
+003FB614  13FC 0001 003FB668      2269       MOVE.B  #1,(SCRCLEAR)
+003FB61C  4E41                    2270       TRAP    #1
+003FB61E  201F                    2271       MOVE.L  (A7)+,D0
+003FB620  4280                    2272       CLR.L      D0
+003FB622  6000 FEE6               2273       BRA     FIRST
+003FB626                          2274  WINGAME
+003FB626  FFFF FFFF               2275      SIMHALT
+003FB62A                          2276  ; --- VARIABLES --------------------------------------------
+003FB62A                          2277  
+003FB62A                          2278      INCLUDE "VARS.X68"
+003FB62A                          2279      
+003FB62A                          2280  ; --- RNG RELATED VARIABLES --------------------------------
+003FB62A                          2281  
+003FB62A                          2282  NEWSEED         DS.W        1
+003FB62C                          2283  LOW             DS.W        1
+003FB62E                          2284  TOP             DS.W        1
+003FB630                          2285  
+003FB630                          2286  ; --- GAME RELATED VARIABLES -------------------------------
+003FB630                          2287  
+003FB630                          2288  INGAME          DS.W        1
+003FB632                          2289  DOREAD          DS.B        1
+003FB634                          2290                  DS.W        0
+003FB634                          2291  
+003FB634                          2292  ; --- DRAWING POKEMON RELATED VARIABLES --------------------
+003FB634                          2293  
+003FB634= 0000                    2294  DRAWYO          DC.W        0   ; IF 0, DRAW OPPNENT, 1 OTHERWISE
+003FB636                          2295  CORPKMX         DS.W        1 ; (NOT USED)   
+003FB638                          2296  CORPKMY         DS.W        1 ; (NOT USED)
+003FB63A                          2297  
+003FB63A                          2298  ;--- ACTIVE POKEMON RELATED VARIABLES ---------------------
+003FB63A                          2299  
+003FB63A= 00                      2300  ACTCHAR         DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB63B= 00                      2301  ACTBLAST        DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB63C= 00                      2302  ACTVEN          DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB63D= 00                      2303  ACTMOLT         DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB63E= 00                      2304  ACTART          DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB63F= 00                      2305  ACTZAPD         DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB640= 00                      2306  ACTMEW          DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB641= 00                      2307  ACTMEWT         DC.B        0 ;0 IF NOT IN COMBAT, 1 IF IS IN COMBAT
+003FB642                          2308                  DS.W        0
+003FB642                          2309  
+003FB642                          2310  ;---SELECTED MOVEMENT RELATED VARIABLES---------------------
+003FB642                          2311  
+003FB642= 00                      2312  SELLANZ         DC.B        0
+003FB643= 00                      2313  SELPULS         DC.B        0
+003FB644= 00                      2314  SELHIDR         DC.B        0
+003FB645= 00                      2315  SELTRIT         DC.B        0
+003FB646= 00                      2316  SELRAYO         DC.B        0
+003FB647= 00                      2317  SELZUMB         DC.B        0
+003FB648                          2318                  DS.W        0
+003FB648                          2319          
+003FB648                          2320  ;---LIFE RELATED VARS --------------------------------------
+003FB648                          2321  
+003FB648= 0118                    2322  OACTLIFE        DC.W        280 ;ACTUAL LIFE OF THE ACTIVE OP PKM
+003FB64A= 0118                    2323  TACTLIFE        DC.W        280 ;ACTUAL LIFE OF THE ACTIVE TEAM PKM
+003FB64C                          2324  
+003FB64C                          2325  ; --- BATTLE POKEMON RELATED VARIABLES ---------------------
+003FB64C                          2326  
+003FB64C                          2327  OFPKMRLS        DS.L        1   ; POINTER TO THE FIRST POKEMON OF OPPONENT
+003FB650                          2328  TFPKMRLS        DS.L        1   ; POINTER TO THE FIRST POKEMON PLAYER
+003FB654= 0002                    2329  FAINTPKM        DC.W        2   
+003FB656                          2330  ; |
+003FB656                          2331  ; *-----> IF 0, OPPONENT FAINTED, 1 OTHERWISE, - 1 NONE OF THEM
+003FB656                          2332  
+003FB656= 0005                    2333  LENPKMO         DC.W        5   ; TOTAL POKEMON OF OPPONENT
+003FB658= 0003                    2334  LENPKMT         DC.W        3   ; TOTAL POKEMON OF PLAYER
+003FB65A= 0002                    2335  TURN            DC.W        2   ; 0 IF PLAYER TURN 1 IF MACHINE TURN
+003FB65C= 0002                    2336  NXTTURN         DC.W        2   ; 0 IF NEXT TURN IS FOR MACHINE 1 IF NEXT TURN IS FOR PLAYER
+003FB65E= 00                      2337  STRDDMG         DC.B        0
+003FB660                          2338                  DS.W        0
+003FB660                          2339  
+003FB660                          2340  ; --- BATTLE SOUND RELATED VARIABLES -----------------------
+003FB660                          2341  
+003FB660                          2342  REFSOUND        DS.B        1 
+003FB662                          2343                  DS.W        0
+003FB662                          2344  
+003FB662                          2345  
+003FB662                          2346  
+003FB662                          2347  
+003FB662                          2348  
+003FB662                          2349  
+003FB662                          2350  
+003FB662                          2351  
+003FB662                          2352  
+003FB662                          2353  
+003FB662                          2354  
+003FB662                          2355  
+003FB662                          2356  
+003FB662                          2357  
+003FB662                          2358  
+003FB662                          2359  
+003FB662                          2360  
+003FB662                          2361  
+003FB662                          2362  
+003FB662                          2363  
+003FB662                          2364  
+003FB662                          2365  
+003FB662                          2366  
+003FB662                          2367  
+003FB662                          2368  
+003FB662                          2369  
+003FB662                          2370  -------------------- end include --------------------
+003FB662                          2371      INCLUDE "SYSVARS.X68"
+003FB662                          2372  
+003FB662                          2373  ; --- KEYBOARD RELATED VARIABLES ---------------------------
+003FB662                          2374  
+003FB662                          2375  KBDVAL      DS.B        1       ; KEY STATE
+003FB663                          2376  KBDEDGE     DS.B        1       ; KEY EDGE
+003FB664                          2377  
+003FB664                          2378  ; --- TIME INTERRUPT RELATED VARIABLES ---------------------
+003FB664                          2379  
+003FB664                          2380  SCRINTCT    DS.B        1       ; INTERRUPT COUNTER
+003FB666                          2381              DS.W        0
+003FB666                          2382  SCRCYCCT    DS.B        1       ; FRAME COUNTER
+003FB668                          2383              DS.W        0 
+003FB668                          2384  
+003FB668                          2385  ; --- CLEAN SCREEN RELATED VARIABLES -----------------------
+003FB668                          2386  
+003FB668                          2387  SCRCLEAR    DS.B        1       ; CLEAN SCREEN
+003FB66A                          2388              DS.W        0      
+003FB66A                          2389  
+003FB66A                          2390  
+003FB66A                          2391  
+003FB66A                          2392  
+003FB66A                          2393  
+003FB66A                          2394  -------------------- end include --------------------
+003FB66A                          2395      
+003FB66A                          2396      
+003FB66A                          2397      END    START        
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+ACTART              3FB63E
+ACTBLAST            3FB63B
+ACTCHAR             3FB63A
+ACTMEW              3FB640
+ACTMEWT             3FB641
+ACTMOLT             3FB63D
+ACTVEN              3FB63C
+ACTZAPD             3FB63F
+AMUL                6D
+ARTICUNOATCK        3FA9D2
+ATCKPTR             3FA166
+ATTACK              5A
+ATTACK1             3FA1A6
+ATTACK10            3FA212
+ATTACK11            3FA21E
+ATTACK12            3FA22A
+ATTACK13            3FA236
+ATTACK14            3FA242
+ATTACK15            3FA24E
+ATTACK16            3FA25A
+ATTACK2             3FA1B2
+ATTACK3             3FA1BE
+ATTACK4             3FA1CA
+ATTACK5             3FA1D6
+ATTACK6             3FA1E2
+ATTACK7             3FA1EE
+ATTACK8             3FA1FA
+ATTACK9             3FA206
+BARHEIGH            55
+BARWIDTH            118
+BLUETHM             3FA43F
+BPTRART             3FA318
+BPTRMEW             3FA342
+BPTRMEWT            3FA367
+BPTRMOLT            3FA38F
+BPTRZAP             3FA3B8
+BTLINIT             3FA770
+BTLINIT:CONTI       3FA8CC
+BTLINIT:CONTO       3FA7F0
+BTLINIT:SELART      3FA830
+BTLINIT:SELBLAS     3FA7A6
+BTLINIT:SELCHAR     3FA7C0
+BTLINIT:SELMEW      3FA890
+BTLINIT:SELMEWT     3FA8B0
+BTLINIT:SELMOLT     3FA850
+BTLINIT:SELVEN      3FA7DA
+BTLINIT:SELZAP      3FA870
+BTLUPD              3FA8D8
+BTLUPD:CPUTURN      3FA95C
+BTLUPD:DOATTACK     3FA906
+BTLUPD:ODOATCK      3FA96A
+BTLUPD:PLYRTURN     3FA8F8
+BUFFERL             114C
+CHGMENU             3FB258
+CHGMENU:ACT         3FB26A
+CHGMENU:BLAS        3FB2E2
+CHGMENU:CHAR        3FB2C6
+CHGMENU:LOOP        3FB270
+CHGMENU:VEN         3FB2AA
+CHKACTLEN           3FB48A
+CHKACTLEN:ULOSE     3FB4DA
+CHKACTLEN:UWIN      3FB4AC
+CHNGPKM             3FACBE
+CHNGPKM:SHOWTPKM    3FACEA
+CMUL                1B
+CORPKMX             3FB636
+CORPKMY             3FB638
+DEFEATOP            3FA402
+DEFEATPKM           3FA400
+DFTPKM              3FACAE
+DMG1                3FA410
+DMG2                3FA411
+DMGFILLC            AAAAAA
+DMGPTR              3FA408
+DOHIDROPULSO        3FB10C
+DOLANZALLAMAS       3FB0AA
+DOPULSOUMBRIO       3FB0D4
+DORAYOSOL           3FB16E
+DOREAD              3FB632
+DOTRITURAR          3FB136
+DOZUMBIDO           3FB198
+DRAWPKM             3FB03A
+DRAWPKM:CONT        3FB09E
+DRAWPKM:DOIT        3FB062
+DRAWPKM:DRAWOP      3FB04E
+DRAWPKM:DRAWT       3FB05A
+DRAWPKM:DRAWX       3FB06C
+DRAWPKM:DRAWY       3FB068
+DRAWPKM:RSTPKMX     3FB09A
+DRAWYO              3FB634
+DRWBLAST            3FAD38
+DRWCHAR             3FAD42
+DRWVEN              3FAD4C
+ELITETHM            3FA46B
+END                 3FA4C8
+FAINTPKM            3FB654
+FILEPATH            1104
+FILEPATHLOSE        1134
+FILEPATHWIN         111A
+FILLCOL             5D5D5D
+FIRST               3FB50A
+FIRST:FINISH        3FB5B4
+FIRST:LOOP          3FB56E
+FIRST:WINT          3FB59A
+GENRAN              3FA4CA
+GETDMG              3FB1DE
+GETDMG:LOOP         3FB1FA
+GETDRWNOPKM         3FADBE
+GETDRWPKM           3FAD14
+HIDROBOMBA          3FAA5E
+HIPERRAYO           3FAAC8
+INGAME              3FB630
+INITTHM             3FB34E
+INITTHM:GETTHM      3FB362
+ISACTART            3FAE22
+ISACTMEW            3FAE3E
+ISACTMEWT           3FAE5A
+ISACTMOLT           3FAE92
+ISACTZAP            3FAE76
+KBDDOWN             28
+KBDEDGE             3FB663
+KBDINIT             10AC
+KBDLEFT             25
+KBDMSKATTACK        4
+KBDMSKDOWN          40
+KBDMSKLEFT          20
+KBDMSKPAUSE         1
+KBDMSKRIGHT         10
+KBDMSKSELECT        8
+KBDMSKUP            80
+KBDPOSATTACK        2
+KBDPOSDOWN          6
+KBDPOSLEFT          5
+KBDPOSPAUSE         0
+KBDPOSRIGHT         4
+KBDPOSSELECT        3
+KBDPOSUP            7
+KBDRIGHT            27
+KBDUP               26
+KBDUPD              10BA
+KBDUPD:LOOP         10FA
+KBDUPD:STORE        10F6
+KBDVAL              3FB662
+LENPKMO             3FB656
+LENPKMT             3FB658
+LOADGAME            3FA57E
+LOSEBUFF            2CE154
+LOSEGAME            3FB5B8
+LOSEGAME:ESPACE     3FB5D6
+LOSEGAME:MINILOOP   3FB5C4
+LOW                 3FB62C
+MAINTHM             3FB38A
+MENU                3FA164
+MENUBLAS            3FA266
+MENUBLAS:STRLST     3FA26A
+MENUBLASV           3FA28A
+MENUCHAR            3FA272
+MENUCHARV           3FA290
+MENUDARKGREY        808080
+MENUGREY            C0C0C0
+MENUINIT            3FA5D4
+MENUPD              3FA5DC
+MENUPD:CHKACTPKM    3FA64E
+MENUPD:CHKMVBLAST   3FA68C
+MENUPD:CHKMVCHAR    3FA67C
+MENUPD:CHKMVVEN     3FA69C
+MENUPD:CHKR         3FA5F2
+MENUPD:CHKZ         3FA604
+MENUPD:DONE         3FA616
+MENUPD:HIDROPULSO   3FA6C0
+MENUPD:LANZALLAMAS  3FA6AC
+MENUPD:NRES         3FA62E
+MENUPD:NXT          3FA61C
+MENUPD:PRE          3FA634
+MENUPD:PRES         3FA642
+MENUPD:PULSOUMBRIO  3FA6B6
+MENUPD:RAYOSOL      3FA6D4
+MENUPD:TRITURAR     3FA6CA
+MENUPD:ZUMBIDO      3FA6DE
+MENUPLOT            3FA71A
+MENUPLOT:CONT       3FA74E
+MENUPLOT:LOOP       3FA736
+MENUVEN             3FA27E
+MENUVENV            3FA296
+MESSAGE             3FA154
+MEWATCK             3FAA16
+MEWTATCK            3FAA38
+MMOD                1000
+MOLTRESATCK         3FA9B0
+MTHEME              3FA42E
+NEOTHM              3FA481
+NEWSEED             3FB62A
+NOCLEAR             1098
+NTHM                3FA458
+NXTTURN             3FB65C
+OACTLIFE            3FB648
+OBARCORX            1C
+OBARCORY            2B
+OFPKMRLS            3FB64C
+OMAXPS              118
+OPKMCORX            140
+OPKMCORY            0
+OPSCORX             11E
+OPSCORY             35
+OPSUPD              3FAC34
+OPSUPD:MINILOOP     3FAC38
+OSUPEREF            3FAAD0
+PAUSE               20
+PBUFFERL            12D14C
+PENCOL              E0E0E
+PLAYBLUE            3FB3AA
+PLAYDMG             3FB44A
+PLAYELIT            3FB42A
+PLAYN               3FB3CA
+PLAYNEO             3FB3EA
+PLAYRESH            3FB40A
+PSDRAW              3FAADE
+PSDRAW:OPPONENT     3FAAE2
+PSDRAW:PLAYER       3FAB68
+PSMSG               3FA404
+PSUPD               3FABFE
+PTBUFFER            1A2150
+PTRADCNT            27000
+PTRART              3FA3EC
+PTRBLAS             3FA3E0
+PTRCHAR             3FA3E4
+PTRMEW              3FA3F0
+PTRMEWT             3FA3F4
+PTRMOLT             3FA3F8
+PTRTHEME            3FA412
+PTRVEN              3FA3E8
+PTRZAP              3FA3FC
+READ                3FA550
+READ:LOOP           3FA562
+READFILE            3FA50A
+READFILE:DRAWX      3FA526
+READFILE:DRAWY      3FA522
+REFSOUND            3FB660
+RESHTHM             3FA49C
+RESTARTSEL          3FA6E8
+RETURNDFT           3FADB6
+SCRCLEAR            3FB668
+SCRCYCCT            3FB666
+SCRHEIGH            1E0
+SCRINIT             1034
+SCRINTCT            3FB664
+SCRPLOT             107A
+SCRTIM              109E
+SCRWIDTH            280
+SELECT              58
+SELHIDR             3FB644
+SELLANZ             3FB642
+SELMENU             3FB208
+SELMENU:BLAS        3FB24A
+SELMENU:CHAR        3FB23C
+SELMENU:VEN         3FB22E
+SELPULS             3FB643
+SELRAYO             3FB646
+SELTRIT             3FB645
+SELZUMB             3FB647
+SETNXTTURN          3FAC80
+SETOTURN            3FAC98
+SETTTURN            3FAC8E
+SETTURN             3FACA2
+SOFOCO              3FAA3C
+START               3FB502
+STDHEIGH            BE
+STDWIDTH            D2
+STOP                3FB372
+STRDDMG             3FB65E
+STRTGAME            3FA5A0
+SUPEREF             3FB1D0
+SYSINIT             1000
+TACTLIFE            3FB64A
+TBARCORX            15A
+TBARCORY            12C
+TBUFFER             12D150
+TEAMINIT            3FAEAE
+TEAMINIT:END        3FAF9C
+TEAMINIT:ENDT       3FB034
+TEAMINIT:GETART     3FAEFC
+TEAMINIT:GETBLAS    3FAFD8
+TEAMINIT:GETCHAR    3FAFF6
+TEAMINIT:GETMEW     3FAF1C
+TEAMINIT:GETMEWT    3FAF3C
+TEAMINIT:GETMOLT    3FAF5C
+TEAMINIT:GETVEN     3FB014
+TEAMINIT:GETZAP     3FAF7C
+TEAMINIT:NOTNEW     3FAF9C
+TEAMINIT:OLOOP      3FAED0
+TEAMINIT:TLOOP      3FAFBC
+TFPKMRLS            3FB650
+TMAXPS              258
+TOP                 3FB62E
+TPKMCORX            30
+TPKMCORY            122
+TPSCORX             138
+TPSCORY             134
+TPTRBLAS            3FA29C
+TPTRCHAR            3FA2C6
+TPTRVEN             3FA2F0
+TRANSFORMACION      3FAAA2
+TRUENO              3FAA80
+TURN                3FB65A
+UPDACTIVE           3FB2FE
+UPDACTIVE:UPDBLAS   3FB340
+UPDACTIVE:UPDCHAR   3FB332
+UPDACTIVE:UPDVEN    3FB324
+UPDOPKM             3FAD56
+UPDOPKM:SHOWOPKM    3FAD82
+WINBUFF             1A2154
+WINGAME             3FB626
+WINTHEME            3FB46A
+WINTHM              3FA4B3
+ZAPDOSATCK          3FA9F4
