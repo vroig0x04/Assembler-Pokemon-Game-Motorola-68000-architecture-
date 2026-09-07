@@ -145,15 +145,12 @@ Realizado por **MENU.X68** y **LOADSCREEN.X68**, gestiona:
 
 ### Fase 2: Selección de Pokémon
 Implementado en **MAIN.X68**, permite:
-- Seleccionar equipo de batalla
-- Visualizar estadísticas
 - Confirmar selección
 
 ### Fase 3: Sistema de Batalla
 Realizado por **SYSBATTLE.X68** (19 KB), incluye:
 - Cálculo de daño
 - Gestión de turnos
-- Animaciones de ataque
 - Determinación de victoria/derrota
 
 ### Fase 4: Gestión de Datos
@@ -169,11 +166,8 @@ Implementado en módulos de datos:
  Cálculo de daño según movimiento y estadísticas  
  Sistema de tipos y efectividad  
  Condiciones de victoria/derrota  
- Animaciones en tiempo real
 
 ### Generación I Pokémon
- Todos los Pokémon de Gen I incluidos  
- Estadísticas completas (HP, ATK, DEF, etc.)  
  Movimientos de primera generación  
  Gráficos basados en sprites de 8 bits  
  Sistema de tipos completo
