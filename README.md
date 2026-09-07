@@ -9,7 +9,6 @@ El sistema implementa:
 - **Sistema de batallas por turnos**: Gestión completa de turnos y ordem de ataque
 - **Motor gráfico**: Renderización directa en pantalla de 320x240 píxeles
 - **Mecánicas de Pokémon**: Estadísticas, movimientos y tipos de Gen I
-- **Menú interactivo**: Navegación y selección de Pokémon
 - **Efectos de sonido**: Integración de audio (opcional)
 - **Generador de números aleatorios**: Para ataques y cálculos no determinísticos
 
