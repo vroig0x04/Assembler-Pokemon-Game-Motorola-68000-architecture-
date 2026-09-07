@@ -9,7 +9,6 @@ The system implements:
 - **Turn-based battle system**: Complete turn management and attack order
 - **Graphics engine**: Direct rendering on 320x240 pixel screen
 - **Pokémon mechanics**: Statistics, moves, and types from Gen I
-- **Interactive menu**: Navigation and Pokémon selection
 - **Sound effects**: Audio integration (optional)
 - **Random number generator**: For attacks and non-deterministic calculations
 
