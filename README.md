@@ -17,7 +17,7 @@ El sistema implementa:
 
 **Disponible en otros idiomas:** [English](README.en.md)
 
-## 🏗️ Composición del Proyecto
+##  Composición del Proyecto
 
 ```
 100% - Lenguaje Ensamblador Motorola 68000 (M68K)
@@ -25,7 +25,7 @@ El sistema implementa:
 
 Todos los módulos del proyecto están desarrollados íntegramente en ensamblador puro.
 
-## 🛠️ Herramientas y Dependencias
+##  Herramientas y Dependencias
 
 ### Requisitos del Sistema
 
@@ -79,7 +79,7 @@ Assembler-Pokemon-Game/
 └── README.txt                       # Información adicional
 ```
 
-## 🚀 Guía de Uso
+##  Guía de Uso
 
 ### 1. Preparación Inicial
 
@@ -127,7 +127,7 @@ Para incluir archivos de audio:
 2. Reemplaza la carpeta `themes` vacía del proyecto
 3. El juego cargará automáticamente los archivos de audio
 
-## 🎮 Controles del Juego
+##  Controles del Juego
 
 | Control | Acción |
 |---------|--------|
@@ -136,7 +136,7 @@ Para incluir archivos de audio:
 | **X** | Reiniciar el juego |
 | **Espacio** | Salir (después de perder) |
 
-## 🔧 Fases y Componentes
+##  Fases y Componentes
 
 ### Fase 1: Carga y Menú
 Realizado por **MENU.X68** y **LOADSCREEN.X68**, gestiona:
@@ -163,30 +163,30 @@ Implementado en módulos de datos:
 - **VARS.X68**: Estado actual del juego
 - **RANDOM.X68**: Generador de números aleatorios
 
-## 📊 Características Principales
+##  Características Principales
 
 ### Sistema de Batalla
-✅ Turnos alternados basados en velocidad  
-✅ Cálculo de daño según movimiento y estadísticas  
-✅ Sistema de tipos y efectividad  
-✅ Condiciones de victoria/derrota  
-✅ Animaciones en tiempo real
+ Turnos alternados basados en velocidad  
+ Cálculo de daño según movimiento y estadísticas  
+ Sistema de tipos y efectividad  
+ Condiciones de victoria/derrota  
+ Animaciones en tiempo real
 
 ### Generación I Pokémon
-✅ Todos los Pokémon de Gen I incluidos  
-✅ Estadísticas completas (HP, ATK, DEF, etc.)  
-✅ Movimientos de primera generación  
-✅ Gráficos basados en sprites de 8 bits  
-✅ Sistema de tipos completo
+ Todos los Pokémon de Gen I incluidos  
+ Estadísticas completas (HP, ATK, DEF, etc.)  
+ Movimientos de primera generación  
+ Gráficos basados en sprites de 8 bits  
+ Sistema de tipos completo
 
 ### Optimizaciones de Ensamblador
-✅ Código modular y reutilizable  
-✅ Gestión eficiente de registros  
-✅ Acceso rápido a tablas de datos  
-✅ Rutinas de sistema independientes  
-✅ Extensos comentarios en el código
+ Código modular y reutilizable  
+ Gestión eficiente de registros  
+ Acceso rápido a tablas de datos  
+ Rutinas de sistema independientes  
+ Extensos comentarios en el código
 
-## 🧪 Casos de Prueba
+##  Casos de Prueba
 
 El repositorio incluye código de prueba en los archivos:
 
