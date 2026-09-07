@@ -17,7 +17,7 @@ The system implements:
 
 **Available in other languages:** [Español](README.md)
 
-## 🏗️ Project Composition
+##  Project Composition
 
 ```
 100% - Motorola 68000 Assembly Language (M68K)
@@ -25,7 +25,7 @@ The system implements:
 
 All project modules are developed entirely in pure assembly language.
 
-## 🛠️ Tools and Dependencies
+##  Tools and Dependencies
 
 ### System Requirements
 
@@ -79,7 +79,7 @@ Assembler-Pokemon-Game/
 └── README.txt                       # Additional information
 ```
 
-## 🚀 Usage Guide
+##  Usage Guide
 
 ### 1. Initial Setup
 
@@ -127,7 +127,7 @@ To include audio files:
 2. Replace the empty `themes` folder in the project
 3. The game will automatically load audio files
 
-## 🎮 Game Controls
+##  Game Controls
 
 | Control | Action |
 |---------|--------|
@@ -136,7 +136,7 @@ To include audio files:
 | **X** | Restart game |
 | **Space** | Exit (after losing) |
 
-## 🔧 Phases and Components
+##  Phases and Components
 
 ### Phase 1: Loading and Menu
 Performed by **MENU.X68** and **LOADSCREEN.X68**, manages:
@@ -163,30 +163,30 @@ Implemented in data modules:
 - **VARS.X68**: Current game state
 - **RANDOM.X68**: Random number generator
 
-## 📊 Main Features
+##  Main Features
 
 ### Battle System
-✅ Alternating turns based on speed  
-✅ Damage calculation based on move and statistics  
-✅ Type system and effectiveness  
-✅ Victory/defeat conditions  
-✅ Real-time animations
+ Alternating turns based on speed  
+ Damage calculation based on move and statistics  
+ Type system and effectiveness  
+ Victory/defeat conditions  
+ Real-time animations
 
 ### Generation I Pokémon
-✅ All Gen I Pokémon included  
-✅ Complete statistics (HP, ATK, DEF, etc.)  
-✅ First generation moves  
-✅ 8-bit sprite-based graphics  
-✅ Complete type system
+ All Gen I Pokémon included  
+ Complete statistics (HP, ATK, DEF, etc.)  
+ First generation moves  
+ 8-bit sprite-based graphics  
+ Complete type system
 
 ### Assembly Optimizations
-✅ Modular and reusable code  
-✅ Efficient register management  
-✅ Fast data table access  
-✅ Independent system routines  
-✅ Extensive code comments
+ Modular and reusable code  
+ Efficient register management  
+ Fast data table access  
+ Independent system routines  
+ Extensive code comments
 
-## 🧪 Test Cases
+##  Test Cases
 
 The repository includes test code in the files:
 
